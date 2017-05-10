@@ -23,17 +23,16 @@ limitations under the License.
 bool
 OpticNerveEstimator::Fit( OpticNerveEstimator::ImageType::Pointer origImage,
                           bool overlay,
-                          bool intermediateOverlays,
                           std::string prefix){
 
-  bool fitEyeSucces = FitEye( origImage, prefix, intermediateOverlays );
+  bool fitEyeSucces = FitEye( origImage, prefix, overlay);
   if(!fitEyeSucces){
 #ifdef DEBUG_PRINT
     std::cout << "Failed to locate eye" << std::endl;
 #endif
     return false;
   }
-  bool fitStemSucces = FitStem( origImage, eye, prefix, intermediateOverlays );
+  bool fitStemSucces = FitStem( origImage, eye, prefix, overlay);
   if(!fitStemSucces){
 #ifdef DEBUG_PRINT
     std::cout << "Failed to locate optic nerve" << std::endl;
@@ -42,9 +41,11 @@ OpticNerveEstimator::Fit( OpticNerveEstimator::ImageType::Pointer origImage,
   }
 
 
+#ifdef DEBUG_PRINT
   std::cout << std::endl;
   std::cout << "Estimated optic nerve width: " << 2 * stem.width << std::endl;
   std::cout << std::endl;
+#endif
 
 
 #ifdef REPORT_TIMES
@@ -224,6 +225,10 @@ OpticNerveEstimator::FitEye( OpticNerveEstimator::ImageType::Pointer inputImage,
 
   ImageType::Pointer image = ITKFilterFunctions<ImageType>::Rescale(inputImage, 0, 100);
 
+#ifdef DEBUG_IMAGES
+  ImageIO<ImageType>::WriteImage(image, catStrings(prefix, "-eye-input.tif") );
+#endif
+
   ImageType::SpacingType imageSpacing = image->GetSpacing();
   ImageType::RegionType imageRegion = image->GetLargestPossibleRegion();
   ImageType::SizeType imageSize = imageRegion.GetSize();
@@ -257,7 +262,7 @@ OpticNerveEstimator::FitEye( OpticNerveEstimator::ImageType::Pointer inputImage,
   //   4.4 Calculate inital center and radius from distance transform (Max)
 
   StructuringElementType structuringElement;
-  structuringElement.SetRadius( 70 );
+  structuringElement.SetRadius( 10 );
   structuringElement.CreateStructuringElement();
   ClosingFilter::Pointer closingFilter = ClosingFilter::New();
   closingFilter->SetInput(image);
@@ -885,6 +890,9 @@ OpticNerveEstimator::OpticNerveEstimator::FitStem(
   stemCalculatorFilter->Compute();
 
   stem.initialWidth = stemCalculatorFilter->GetMaximum() ;
+  if(stem.initialWidth < 0 ){
+     return false;
+  }
   stem.initialCenterIndex = stemCalculatorFilter->GetIndexOfMaximum();
   stemImage->TransformIndexToPhysicalPoint(stem.initialCenterIndex, stem.initialCenter);
 
@@ -1004,7 +1012,11 @@ OpticNerveEstimator::OpticNerveEstimator::FitStem(
   stemCalculatorFilter2->SetImage( stemDistance2 );
   stemCalculatorFilter2->Compute();
 
-  stem.initialWidth = stemCalculatorFilter2->GetMaximum() ;
+  stem.initialWidth = stemCalculatorFilter2->GetMaximum();
+
+  if(stem.initialWidth < 0 ){
+     return false;
+  }
   stem.initialCenterIndex = stemCalculatorFilter2->GetIndexOfMaximum();
   stemImage->TransformIndexToPhysicalPoint(stem.initialCenterIndex, stem.initialCenter);
 

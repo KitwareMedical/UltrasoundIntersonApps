@@ -41,7 +41,7 @@ void OpticNerveUI::closeEvent (QCloseEvent *event){
 
 OpticNerveUI::OpticNerveUI(int numberOfThreads, int bufferSize, QWidget *parent) 
 	: QMainWindow(parent), ui(new Ui::MainWindow), 
-          lastRendered(-1)
+          lastRendered(-1), lastOverlayRendered(-1)
 {
 
 	//Setup the graphical layout on this current Widget
@@ -60,7 +60,6 @@ OpticNerveUI::OpticNerveUI(int numberOfThreads, int bufferSize, QWidget *parent)
         intersonDevice.SetRingBufferSize( bufferSize );
 
         opticNerveCalculator.SetNumberOfThreads( numberOfThreads ); 
-        opticNerveCalculator.SetQLabel( ui->label_OpticNerveImage );
  
                
 
@@ -106,16 +105,13 @@ void OpticNerveUI::ConnectProbe(){
 
 
 void OpticNerveUI::UpdateImage(){
-  int currentIndex = intersonDevice.GetCurrentIndex();
 
-#ifdef DEBUG_PRINT
- // std::cout << "Updating BMode image " << currentIndex << std::endl;
-#endif
-  if( currentIndex > 0 && 
-      currentIndex != lastRendered ){
+   //display bmode image
+  int currentIndex = intersonDevice.GetCurrentIndex();
+  if( currentIndex > 0 && currentIndex != lastRendered ){
      lastRendered = currentIndex;
      IntersonArrayDevice::ImageType::Pointer bmode = 
-            intersonDevice.GetImage( currentIndex); 
+                                 intersonDevice.GetImage( currentIndex); 
      QImage image = ITKQtHelpers::GetQImageColor<IntersonArrayDevice::ImageType>( 
                           bmode,
                           bmode->GetLargestPossibleRegion(), 
@@ -128,6 +124,28 @@ void OpticNerveUI::UpdateImage(){
     ui->label_BModeImage->setPixmap(QPixmap::fromImage(image));
     ui->label_BModeImage->setScaledContents( true );
     ui->label_BModeImage->setSizePolicy( QSizePolicy::Ignored, QSizePolicy::Ignored );
+  }
+
+
+  //display estimate image
+  int currentOverlayIndex = opticNerveCalculator.GetCurrentIndex();
+  if( currentOverlayIndex > 0 && currentOverlayIndex != lastOverlayRendered ){
+#ifdef DEBUG_PRINT
+     std::cout << "Display overlay image" << std::endl;
+#endif
+     lastOverlayRendered = currentOverlayIndex;
+     //Set overlay image to display
+     typedef OpticNerveEstimator::RGBImageType RGBImageType;
+     RGBImageType::Pointer overlay = 
+            opticNerveCalculator.GetImageAbsolute( currentOverlayIndex );
+
+     QImage qimage = ITKQtHelpers::GetQImageColor_Vector< RGBImageType>( 
+                           overlay,
+                           overlay->GetLargestPossibleRegion(), 
+                           QImage::Format_RGB16 );
+     ui->label_OpticNerveImage->setPixmap(QPixmap::fromImage(qimage));
+     ui->label_OpticNerveImage->setScaledContents( true );
+     ui->label_OpticNerveImage->setSizePolicy( QSizePolicy::Ignored, QSizePolicy::Ignored );
   }
   this->timer->start();
 }

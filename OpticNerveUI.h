@@ -75,6 +75,7 @@ private:
   QTimer *timer;
 
   int lastRendered;
+  int lastOverlayRendered;
 };
 
 #endif

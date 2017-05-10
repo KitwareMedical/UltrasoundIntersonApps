@@ -191,6 +191,9 @@ public:
 
 
   ImageType::Pointer GetImage(int ringBufferIndex){
+#ifdef DEBUG_PRINT
+  //std::cout << "Grabbing image: " << ringBufferIndex << std::endl;
+#endif
     return ringBuffer[ringBufferIndex];
   };
 

@@ -30,6 +30,13 @@ UltrasoundOpticNerveUI
 # Software Architecture 
 
 This is a multithreaded architecture with three main threads.
-1. The QT user interface thread that displayes the images (in OpticNerveUI. )
+1. The QT user interface thread that displayes the images (in OpticNerveUI. ) by grabbing images from the ringbuffers in 2 and 3 below.
 2. The image aqusition thread that stores images into a RingBuffer (IntersonArrayDevice.hxx)
-3. The optic nerve width estimator that reads images from the ringbuffer and does the calculations (OpticNerveCalculator.hxx). This threads spawns multiple worker threads to estimate the width on multiple images in parallel.
+3. The optic nerve width estimator that reads images from the ringbuffer and does the calculations (OpticNerveCalculator.hxx). This threads spawns multiple worker threads to estimate the width on multiple images in parallel adn stores the result ina ringbuffer.
+
+
+# TODO
+
+1. A muex lock (or maybe some other clever option) is required to guarantee that the optic nerve estimate is not done on the same image twice. (Is relatively unliley to happen and does not cause nay further harm but wasted computation)
+2. The optic nerve width estimates are not stored in order (display of estimate sis out order)
+3. The OpticNerveEstimator is allocated and deallcoated every time (and all the filters required). Shouls set this up as a a pipeline 

@@ -44,5 +44,14 @@ int main(int argc,char *argv[])
   OpticNerveUI window( nThreads, ringBufferSize, nullptr);
   window.show();
 
+  try{
   return app.exec();
+  }
+  catch(std::exception &e){
+    std::cout << e.what() << std::endl;
+  }
+  catch( ...  ){
+    std::cout << "something failed" << std::endl;
+  }
+  
 }

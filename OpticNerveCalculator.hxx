@@ -19,9 +19,11 @@ class OpticNerveCalculator
 {
 public:
   
-  OpticNerveCalculator(): current(0), labelImage(NULL) {
-    maxNumberOfThreads=4;
+  OpticNerveCalculator(): currentWrite(-1), nTotalWrite(0), 
+                          currentRead(0){
+    maxNumberOfThreads=1;
     stopThreads = true;
+    ringBuffer.resize(10);
   };
  
   ~OpticNerveCalculator(){
@@ -34,6 +36,7 @@ public:
     for(int i=0; i<maxNumberOfThreads; i++){
       CloseHandle( threads[i] );
     }
+    CloseHandle( toProcessMutex );
     stopThreads = false;
   } 
 
@@ -57,6 +60,8 @@ public:
 #ifdef DEBUG_PRINT
      std::cout << "Spawning worker threads" << std::endl;
 #endif
+
+    toProcessMutex = CreateMutex(NULL, false, NULL);
     threads = new HANDLE[maxNumberOfThreads];
     threadsID = new DWORD[maxNumberOfThreads];
     for(int i=0; i<maxNumberOfThreads; i++){
@@ -66,26 +71,23 @@ public:
     return true;
   }
 
-  void SetImageLabel( QLabel *label){
-    labelImage = label;
-  }
-
 
   bool ProcessNext(){
 
-     //Might grab an oout of date image if current is increased 
-     // after the check here.
-     //Would need mutex
-     if( current >= device->GetNumberOfImagesAquired() ){
-       return !stopThreads;
+     //No need for mutex anymore
+     int index = currentRead++;
+     while( index >= device->GetNumberOfImagesAquired() ){
+       Sleep(10);
      }
 #ifdef DEBUG_PRINT
-     std::cout << "Calculating optiv nerve on next image" << std::endl;
+     //std::cout << "Calculating optic nerve on next image" << std::endl;
 #endif
-     int index = current;
+     //This might grab the same image twice if the index in another thread 
+     //is the same modulo ringbuffer size
      IntersonArrayDevice::ImageType::Pointer image = 
-                            device->GetImageAbsolute( current++ );
-     
+                            device->GetImageAbsolute( index );
+
+     //TODO: Avoid instantion of filters every time -> setup a pipeline 
      OpticNerveEstimator one;
      typedef itk::CastImageFilter< IntersonArrayDevice::ImageType, OpticNerveEstimator::ImageType> Caster;
      Caster::Pointer caster = Caster::New();
@@ -95,36 +97,49 @@ public:
 #ifdef DEBUG_PRINT
      std::cout << "Doing estimation on image" << index << std::endl;
 #endif
-     bool success = one.Fit( castImage, true, false );
-
+     bool success = false;
+     try{
+       success = one.Fit( castImage, true, "debug" );
+     }
+     catch( itk::ExceptionObject & err ){
+#ifdef DEBUG_PRINT
+	  std::cerr << "ExceptionObject caught !" << std::endl;
+	  std::cerr << err << std::endl;
+#endif
+      }
+    
      if(!success){
 #ifdef DEBUG_PRINT
-     std::cout << "Estimation failed" << index << std::endl;
+       std::cout << "Estimation failed" << index << std::endl;
 #endif
        return !stopThreads;
      }
     
 #ifdef DEBUG_PRINT
-     std::cout << "Displaying current estimate" << std::endl;
+     std::cout << "Storing current estimate" << std::endl;
 #endif
-     //Convert back to QTimage
+     
      typedef OpticNerveEstimator::RGBImageType RGBImageType;
      RGBImageType::Pointer overlay = one.GetOverlay();
-     QImage qimage = ITKQtHelpers::GetQImageColor_Vector<RGBImageType>( 
-                           overlay,
-                           overlay->GetLargestPossibleRegion(), 
-                           QImage::Format_RGB16 );
-     //Set overlay image to display
-     labelImage->setPixmap(QPixmap::fromImage(qimage));
-     labelImage->setScaledContents( true );
-     labelImage->setSizePolicy( QSizePolicy::Ignored, QSizePolicy::Ignored );
+
+    
+     DWORD waitForMutex = WaitForSingleObject(toProcessMutex, INFINITE); 
+
+     //TODO: insert in order?
+     int toAdd = currentWrite+1;
+     if(toAdd >= ringBuffer.size() ){
+       toAdd = 0;
+     }
+     ringBuffer[toAdd] = overlay;
+     currentWrite = toAdd; 
+     ++nTotalWrite;
+
+     ReleaseMutex( toProcessMutex );
+
+ 
      return !stopThreads;
   };
 
-
-  void SetQLabel(QLabel *label){
-    labelImage = label;
-  }
 
  
   static DWORD WINAPI CalculateOpticNerveWidth(LPVOID lpParam){
@@ -137,8 +152,43 @@ public:
   };
 
 
+
+  OpticNerveEstimator::RGBImageType::Pointer GetImage(int ringBufferIndex){
+    return ringBuffer[ringBufferIndex];
+  };
+
+
+
+  OpticNerveEstimator::RGBImageType::Pointer GetImageAbsolute(int absoluteIndex){
+    return GetImage( absoluteIndex % ringBuffer.size() );
+  };
+
+
+  
+  int GetCurrentIndex(){
+    return currentWrite;
+  };
+
+
+
+  void SetRingBufferSize(int size){
+    ringBuffer.resize(size);
+  };
+
+
+  
+  long GetNumberOfEstimates(){
+    return nTotalWrite;
+  };
+
+
+
 private:
-  QLabel *labelImage;
+
+  std::atomic<int> currentWrite;
+  long nTotalWrite; 
+  std::vector< OpticNerveEstimator::RGBImageType::Pointer > ringBuffer;
+
 
   bool stopThreads;
 
@@ -147,9 +197,9 @@ private:
   DWORD *threadsID;
   HANDLE toProcessMutex;
  
+  std::atomic<int> currentRead;
   IntersonArrayDevice *device;
 
-  std::atomic<int> current;
 };
 
 #endif

@@ -243,7 +243,7 @@ public:
 
 
   bool Fit( ImageType::Pointer origImage, bool overlay = false,
-            bool intermediateOverlays = false, std::string prefix = "");
+            std::string prefix = "");
 
 
    Eye GetEye(){
