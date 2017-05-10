@@ -1,6 +1,6 @@
 # Ultrasound Optic Nerve Estimation UI
 
-A QT user interface doing optic nerve width estimation.
+A QT user interface for doing optic nerve width estimation.
 
 Uses copied code from the UltrsoundOpticNerveEstimation repository.
 
@@ -23,8 +23,6 @@ Build each in "Release" configuration and in the following order:
     + IntersonArrayCxxControlsHWControls.cxx has a line #using IntersonArray.dll, this requires that IntersonArray.dll is either in the LIBPATH or in directory the exectubale is run in. 
     + For running from commandline all dll's used also need ito be in the PATH (see below).
     + Run SeeMoreArraySetup.exe (from the IntersonArraySDK)
-
-You also need to pass in argument the config-file used for the Interson probe.
 
 Usage:
 UltrasoundOpticNerveUI
