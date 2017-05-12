@@ -41,5 +41,5 @@ This is a multithreaded architecture with three main threads.
 3. The OpticNerveEstimator is allocated and deallcoated every time (and all the filters required). Shouls set this up as a a pipeline 
 4. The optic nerve width estimates are not stored in order (display of estimate sis out order)
 
-##Done
+## Done
 1. A mutex lock (or maybe some other clever option) is required to guarantee that the optic nerve estimate is not done on the same image twice. (Is relatively unliley to happen and does not cause nay further harm but wasted computation)
