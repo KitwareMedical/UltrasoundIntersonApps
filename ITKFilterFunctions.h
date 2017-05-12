@@ -32,6 +32,8 @@ limitations under the License.
 #include "itkSubtractImageFilter.h"
 #include "itkAddImageFilter.h"
 #include "itkBinaryThresholdImageFilter.h"
+#include "itkPermuteAxesImageFilter.h"
+#include "itkFlipImageFilter.h"
 
 template < typename TImage >
 class ITKFilterFunctions{
@@ -69,6 +71,14 @@ class ITKFilterFunctions{
   
     typedef itk::BinaryThresholdImageFilter <Image, Image> BinaryThresholdFilter;
     typedef typename BinaryThresholdFilter::Pointer BinaryThresholdFilterPointer;
+
+    typedef itk::PermuteAxesImageFilter<Image> PermuteFilter;
+    typedef typename PermuteFilter::Pointer PermuteFilterPointer;
+    typedef typename PermuteFilter::PermuteOrderArrayType PermuteArray;
+  
+    typedef itk::FlipImageFilter<Image> FlipFilter;
+    typedef typename FlipFilter::Pointer FlipFilterPointer;
+    typedef typename FlipFilter::FlipAxesArrayType FlipArray;
 
   static ImagePointer Rescale(ImagePointer image, PixelType minI, PixelType maxI){
     RescaleFilterPointer rescale = RescaleFilter::New();
@@ -142,6 +152,23 @@ class ITKFilterFunctions{
 
 
 
+  static ImagePointer PermuteImage(ImagePointer image, PermuteArray &order){
+     PermuteFilterPointer permute = PermuteFilter::New();
+     permute->SetOrder(  order );
+     permute->SetInput( image ); 
+     permute->Update();
+     image = permute->GetOutput();
+     return image; 
+  }; 
+
+  static ImagePointer FlipImage(ImagePointer image, FlipArray &flip){
+     FlipFilterPointer flipper = FlipFilter::New();
+     flipper->SetFlipAxes(  flip );
+     flipper->SetInput( image ); 
+     flipper->Update();
+     image = flipper->GetOutput();
+     return image; 
+  }; 
 
 
 
@@ -160,7 +187,7 @@ class ITKFilterFunctions{
     for(int i=0; i<size[0]; i++){
       ImageIndex index;
       index[0] = i;
-      for(int j=0; j<w; j++){
+      for(int j=0; j<std::min( (int) size[1],w); j++){
 	      index[1] = j;
 	      image->SetPixel(index, 100);
 	      index[1] = size[1]-1-j;
@@ -169,13 +196,26 @@ class ITKFilterFunctions{
     }    
   };
 
+  static void AddHorizontalBorderTop(ImagePointer image, int w){
+
+    ImageSize size = image->GetLargestPossibleRegion().GetSize();
+
+    for(int i=0; i<size[0]; i++){
+      ImageIndex index;
+      index[0] = i;
+      for(int j=0; j<std::min( (int) size[1],w); j++){
+	      index[1] = j;
+	      image->SetPixel(index, 100);
+      }
+    }    
+  };
   
   static void AddVerticalBorder(ImagePointer image, int w){
     ImageSize size = image->GetLargestPossibleRegion().GetSize();
     for(int i=0; i<size[1]; i++){
       ImageIndex index;
       index[1] = i;
-      for(int j=0; j<w; j++){
+      for(int j=0; j<std::min( (int) size[0], w); j++){
         index[0] = j;
         image->SetPixel(index, 100);
         index[0] = size[0]-1-j;

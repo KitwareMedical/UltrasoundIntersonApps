@@ -62,7 +62,11 @@ protected slots:
   /** Quit the application */
   void ConnectProbe();
   /** Start the application */
-  //void SetFrequency();
+  void SetFrequency();
+  void SetDepth();
+
+  void ToggleEstimation();
+
   /** Update the images displayed from the probe */
   void UpdateImage();
 

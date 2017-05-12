@@ -27,8 +27,10 @@ limitations under the License.
 //const double frequencies[] = { 2.5, 3.5, 5.0 };
 
 #include "OpticNerveUI.h"
+#include "ITKFilterFunctions.h"
 
-#include <QCloseEvent>
+#include <sstream>
+#include <iomanip>
 
 void OpticNerveUI::closeEvent (QCloseEvent *event){
 
@@ -52,10 +54,12 @@ OpticNerveUI::OpticNerveUI(int numberOfThreads, int bufferSize, QWidget *parent)
 	//Links buttons and actions
 	connect( ui->pushButton_ConnectProbe, 
                  SIGNAL(clicked()), this, SLOT(ConnectProbe()));
-	//connect( ui->dropDown_Depth, 
-        //         SIGNAL(valueChanged(int)), this, SLOT(SetDepth()));
-	//connect( ui->comboBox_Frequency, 
-        //         SIGNAL(valueChanged(int)), this, SLOT(SetFrequency()));
+	connect( ui->pushButton_Estimation, 
+                 SIGNAL(clicked()), this, SLOT(ToggleEstimation()));
+	connect( ui->dropDown_Depth, 
+                 SIGNAL(valueChanged(int)), this, SLOT(SetDepth()));
+	connect( ui->comboBox_Frequency, 
+                 SIGNAL(currentIndexChanged(int)), this, SLOT(SetFrequency()));
       
         intersonDevice.SetRingBufferSize( bufferSize );
 
@@ -84,21 +88,28 @@ void OpticNerveUI::ConnectProbe(){
 #ifdef DEBUG_PRINT
     std::cout << "Connect probe failed" << std::endl;
 #endif
+    return;
     //TODO: Show UI message
   }
   
+  IntersonArrayDevice::FrequenciesType fs = intersonDevice.GetFrequencies();
+  ui->comboBox_Frequency->clear();
+  for(int i=0; i<fs.size(); i++){
+     std::ostringstream ftext;   
+     ftext << std::setprecision(1) << std::setw(3) << std::fixed;
+     ftext << fs[i] << " hz";
+     ui->comboBox_Frequency->addItem( ftext.str().c_str() );
+  }
+
   if ( !intersonDevice.Start() ){
 #ifdef DEBUG_PRINT
     std::cout << "Starting scan failed" << std::endl;
 #endif
+    return;
     //TODO: Show UI message
   }
 
-#ifdef DEBUG_PRINT
-    std::cout << "Calling start optic nerve estimation processing" << std::endl;
-#endif
-  opticNerveCalculator.StartProcessing( &intersonDevice ); 
-  
+    
   this->timer->start();
 }
 
@@ -108,10 +119,22 @@ void OpticNerveUI::UpdateImage(){
 
    //display bmode image
   int currentIndex = intersonDevice.GetCurrentIndex();
-  if( currentIndex > 0 && currentIndex != lastRendered ){
+  if( currentIndex >= 0 && currentIndex != lastRendered ){
      lastRendered = currentIndex;
      IntersonArrayDevice::ImageType::Pointer bmode = 
                                  intersonDevice.GetImage( currentIndex); 
+ 
+/*    
+     ITKFilterFunctions<IntersonArrayDevice::ImageType>::FlipArray flip;
+     flip[0] = false;
+     flip[1] = true;
+     bmode = ITKFilterFunctions<IntersonArrayDevice::ImageType>::FlipImage(bmode , flip);
+  */    
+     ITKFilterFunctions< IntersonArrayDevice::ImageType >::PermuteArray order;
+     order[0] = 1;
+     order[1] = 0;
+     bmode= ITKFilterFunctions< IntersonArrayDevice::ImageType>::PermuteImage(bmode, order);
+
      QImage image = ITKQtHelpers::GetQImageColor<IntersonArrayDevice::ImageType>( 
                           bmode,
                           bmode->GetLargestPossibleRegion(), 
@@ -129,7 +152,7 @@ void OpticNerveUI::UpdateImage(){
 
   //display estimate image
   int currentOverlayIndex = opticNerveCalculator.GetCurrentIndex();
-  if( currentOverlayIndex > 0 && currentOverlayIndex != lastOverlayRendered ){
+  if( currentOverlayIndex >= 0 && currentOverlayIndex != lastOverlayRendered ){
 #ifdef DEBUG_PRINT
      std::cout << "Display overlay image" << std::endl;
 #endif
@@ -137,30 +160,70 @@ void OpticNerveUI::UpdateImage(){
      //Set overlay image to display
      typedef OpticNerveEstimator::RGBImageType RGBImageType;
      RGBImageType::Pointer overlay = 
-            opticNerveCalculator.GetImageAbsolute( currentOverlayIndex );
+            opticNerveCalculator.GetImage( currentOverlayIndex );
+
+/*
+     typedef itk::PermuteAxesImageFilter<RGBImageType> PermuteFilter;
+     typedef typename PermuteFilter::Pointer PermuteFilterPointer;
+     typedef typename PermuteFilter::PermuteOrderArrayType PermuteArray;
+     PermuteFilterPointer permute = PermuteFilter::New();
+     PermuteArray order;
+     order[0] = 1;
+     order[1] = 0;
+     permute->SetOrder(  order );
+     permute->SetInput( overlay ); 
+     permute->Update();
+     overlay = permute->GetOutput();
+*/
 
      QImage qimage = ITKQtHelpers::GetQImageColor_Vector< RGBImageType>( 
                            overlay,
                            overlay->GetLargestPossibleRegion(), 
                            QImage::Format_RGB16 );
+
      ui->label_OpticNerveImage->setPixmap(QPixmap::fromImage(qimage));
      ui->label_OpticNerveImage->setScaledContents( true );
      ui->label_OpticNerveImage->setSizePolicy( QSizePolicy::Ignored, QSizePolicy::Ignored );
   }
+
+  //display the estimates
+  std::ostringstream cestimate;   
+  cestimate << std::setprecision(1) << std::setw(3) << std::fixed;
+  cestimate << opticNerveCalculator.GetCurrentEstimate() << " / ";
+  ui->label_estimateCurrent->setText( cestimate.str().c_str() );
+
+  std::ostringstream mestimate;   
+  mestimate << std::setprecision(1) << std::setw(3) << std::fixed;
+  mestimate << opticNerveCalculator.GetMeanEstimate() << " / ";
+  ui->label_estimateMean->setText( mestimate.str().c_str() );
+  
+  std::ostringstream mdestimate;   
+  mdestimate << std::setprecision(1) << std::setw(3) << std::fixed;
+  mdestimate << opticNerveCalculator.GetMedianEstimate() << " / ";
+  ui->label_estimateMedian->setText( mdestimate.str().c_str() );
   this->timer->start();
 }
 
 
 
-//void OpticNerveUI::SetFrequency(){
-  //this->videoDevice->StopRecording();
-  //this->videoDevice->SetProbeFrequencyMhz(GetFrequency());
-  //this->videoDevice->StartRecording();
-//}
+void OpticNerveUI::SetFrequency(){
+  this->intersonDevice.SetFrequency( 
+                     this->ui->comboBox_Frequency->currentIndex() + 1 ); 
+}
 
-//void OpticNerveUI::SetDepth(){
-  //this->videoDevice->StopRecording();
-  //this->videoDevice->SetDepth( this->ui->dropDown_Depth->value() );
-  //this->videoDevice->StartRecording();
-//}
+void OpticNerveUI::SetDepth(){
+  int depth = this->intersonDevice.SetDepth( 
+                                this->ui->dropDown_Depth->value() );
+  this->ui->dropDown_Depth->setValue(depth);
+}
 
+void OpticNerveUI::ToggleEstimation(){
+  if( opticNerveCalculator.isRunning() ){
+    opticNerveCalculator.Stop();
+    ui->pushButton_Estimation->setText( "Start Estimation" );
+  } 
+  else{
+    opticNerveCalculator.StartProcessing( &intersonDevice );
+    ui->pushButton_Estimation->setText( "Stop Estimation" );
+  }
+}

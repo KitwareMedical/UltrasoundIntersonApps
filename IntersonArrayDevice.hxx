@@ -15,20 +15,23 @@ class IntersonArrayDevice{
 public:
  
   typedef IntersonArrayCxx::Imaging::Container ContainerType;
-  //typedef ContainerType::PixelType PixelType;
-  typedef unsigned char PixelType;
+  typedef ContainerType::PixelType PixelType;
+  //typedef unsigned char PixelType;
   typedef itk::Image< PixelType, 2 > ImageType;
 
 
-  IntersonArrayDevice(): current(-1),
-                         nImagesAquired(0)
-  {
+  typedef IntersonArrayCxx::Controls::HWControls HWControlsType;
+  typedef HWControlsType::FrequenciesType FrequenciesType;
+
+  IntersonArrayDevice(): current(-1), nImagesAquired(0) {
     //Setup defaults
     frequencyIndex = 1;
     focusIndex = 0; 
     highVoltage = 50;
     gain = 100;
     depth = 100;
+    steering = 0;
+    probeId = -1;
 
     probeIsConnected = false;
   };
@@ -48,14 +51,53 @@ public:
     container.StartReadScan();
     return hwControls.StartBmode(); 
   };
+
+  void SetFrequency(int fIndex){
+    if(frequencyIndex == fIndex){
+      return;
+    }
+    frequencyIndex = fIndex;
+    if(fIndex < 1 || fIndex > frequencies.size() ){
+      Stop();
+      hwControls.SetFrequencyAndFocus( frequencyIndex, focusIndex,
+         steering );
+      Start();
+    }  
+  }
+
+  int SetDepth(int d){
+    if(d == depth){
+      return d;
+    }
+    Stop();
+    depth  = hwControls.ValidDepth( d );
+    ContainerType::ScanConverterError converterErrorIdle =
+        container.IdleInitScanConverter( depth, width, height, probeId,
+                                         steering, false, false, 0 );
+
+     ContainerType::ScanConverterError converterError =
+         container.HardInitScanConverter( depth, width, height, steering );
+
+#ifdef DEBUG_PRINT
+  std::cout << "Image size: " << height << " x " << depth << std::endl;
+#endif
+
+    InitalizeRingBuffer();
+
+    Start();
+
+    return depth;
+  };
  
   int GetCurrentIndex(){
     return current;
   };
 
+
   void SetRingBufferSize(int size){
     ringBuffer.resize(size);
   }
+
 
   bool ConnectProbe(){
     if(probeIsConnected){
@@ -75,15 +117,17 @@ public:
 
     hwControls.FindMyProbe( 0 );
 
-    const unsigned int probeId = hwControls.GetProbeID();
+    probeId = hwControls.GetProbeID();
     if( probeId == 0 ){
       std::cerr << "Could not find the probe." << std::endl;
       return false;
 
     }
 
-    HWControlsType::FrequenciesType frequencies;
     hwControls.GetFrequency( frequencies );
+#ifdef DEBUG_PRINT
+  std::cout << "Number of Frequencies: " <<  frequencies.size() << std::endl;
+#endif
     if( !hwControls.SetFrequencyAndFocus( frequencyIndex, focusIndex,
          steering ) ){
       return false;
@@ -126,8 +170,8 @@ public:
 #ifdef DEBUG_PRINT
   std::cout << "Checking depth" << std::endl;
 #endif
-    const int height = hwControls.GetLinesPerArray();
-    const int width = 512; //container.MAX_SAMPLES;
+    height = hwControls.GetLinesPerArray();
+    width = 512; //container.MAX_SAMPLES;
     if( hwControls.ValidDepth( depth ) == depth ){
       ContainerType::ScanConverterError converterErrorIdle =
         container.IdleInitScanConverter( depth, width, height, probeId,
@@ -149,31 +193,7 @@ public:
   std::cout << "Image size: " << height << " x " << depth << std::endl;
 #endif
 
-#ifdef DEBUG_PRINT
-  std::cout << "Setting up ringBuffer" << std::endl;
-#endif
-    const int scanWidth = container.GetWidthScan();
-    const int scanHeight = container.GetHeightScan();
-
-    for(int i=0;  i<ringBuffer.size(); i++){
-      ImageType::Pointer image = ImageType::New();
-      
-      ImageType::IndexType imageIndex;
-      imageIndex.Fill( 0 );
-      
-      ImageType::SizeType imageSize;
-      imageSize[0] = width;
-      imageSize[1] = height;
-      
-      ImageType::RegionType imageRegion;
-      imageRegion.SetIndex( imageIndex );
-      imageRegion.SetSize( imageSize );
-      
-      image->SetRegions( imageRegion );
-      image->Allocate();
-      
-      ringBuffer[i] = image;
-    }
+    InitalizeRingBuffer();
 
 #ifdef DEBUG_PRINT
   std::cout << "Add callback" << std::endl;
@@ -225,7 +245,8 @@ public:
     PixelType *imageBuffer = image->GetPixelContainer()->GetBufferPointer();
     std::memcpy( imageBuffer, buffer, 
                  imageSize[0] * imageSize[1] * sizeof( PixelType ) );
-    
+   
+
     nImagesAquired++;  
     current = index;
   }
@@ -240,6 +261,10 @@ public:
   };
 
 
+  FrequenciesType GetFrequencies(){
+    return frequencies;
+  };
+
 
 private:
 
@@ -250,18 +275,54 @@ private:
   //Probe setups
   bool probeIsConnected;
 
+  FrequenciesType frequencies;
+  int steering;
   int frequencyIndex;
   int focusIndex;
   int highVoltage;
   int gain;
   int depth;
-    
-  typedef IntersonArrayCxx::Controls::HWControls HWControlsType;
+  int height;
+  int width;
+  unsigned int probeId;
+  
   HWControlsType hwControls;
   
   ContainerType container;
 
   long nImagesAquired;
+
+  void InitalizeRingBuffer(){
+  
+#ifdef DEBUG_PRINT
+    std::cout << "Setting up ringBuffer" << std::endl;
+#endif
+   // const int scanWidth = container.GetWidthScan();
+   // const int scanHeight = container.GetHeightScan();
+
+    for(int i=0;  i<ringBuffer.size(); i++){
+      ImageType::Pointer image = ImageType::New();
+      
+      ImageType::IndexType imageIndex;
+      imageIndex.Fill( 0 );
+      
+      ImageType::SizeType imageSize;
+      imageSize[0] = width;
+      imageSize[1] = height;
+      
+      ImageType::RegionType imageRegion;
+      imageRegion.SetIndex( imageIndex );
+      imageRegion.SetSize( imageSize );
+      
+      image->SetRegions( imageRegion );
+      image->Allocate();
+      
+      ringBuffer[i] = image;
+    }
+
+
+  };
+
 };
 
 #endif
