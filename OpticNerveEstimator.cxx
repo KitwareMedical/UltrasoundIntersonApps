@@ -68,7 +68,6 @@ OpticNerveEstimator::Fit( OpticNerveEstimator::ImageType::Pointer origImage,
   overlayImage = rgbConvert->GetOutput(); 
 
 
-  std::cout << overlayImage->GetLargestPossibleRegion() << std::endl;
   itk::ImageRegionIterator<RGBImageType> overlayIterator2( overlayImage, 
                                              overlayImage->GetLargestPossibleRegion());
   itk::ImageRegionIterator<ImageType> eyeIterator( eye.aligned, 
