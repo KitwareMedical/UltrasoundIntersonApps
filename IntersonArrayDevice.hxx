@@ -266,6 +266,10 @@ public:
   };
 
 
+  float GetMmPerPixel(){
+    return container.GetMMPerPixel();
+  };
+
 private:
 
   //Ringbuffer for storing images continuously 

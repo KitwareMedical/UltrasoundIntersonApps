@@ -186,20 +186,21 @@ void OpticNerveUI::UpdateImage(){
      ui->label_OpticNerveImage->setSizePolicy( QSizePolicy::Ignored, QSizePolicy::Ignored );
   }
 
+  float mm = intersonDevice.GetMMPerPixel();
   //display the estimates
   std::ostringstream cestimate;   
   cestimate << std::setprecision(1) << std::setw(3) << std::fixed;
-  cestimate << opticNerveCalculator.GetCurrentEstimate() << " / ";
+  cestimate << opticNerveCalculator.GetCurrentEstimate() * mm << " mm";
   ui->label_estimateCurrent->setText( cestimate.str().c_str() );
 
   std::ostringstream mestimate;   
   mestimate << std::setprecision(1) << std::setw(3) << std::fixed;
-  mestimate << opticNerveCalculator.GetMeanEstimate() << " / ";
+  mestimate << opticNerveCalculator.GetMeanEstimate() * mm<< " mm";
   ui->label_estimateMean->setText( mestimate.str().c_str() );
   
   std::ostringstream mdestimate;   
   mdestimate << std::setprecision(1) << std::setw(3) << std::fixed;
-  mdestimate << opticNerveCalculator.GetMedianEstimate() << " / ";
+  mdestimate << opticNerveCalculator.GetMedianEstimate() * mm << " mm";
   ui->label_estimateMedian->setText( mdestimate.str().c_str() );
   this->timer->start();
 }
