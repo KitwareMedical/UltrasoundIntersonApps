@@ -267,7 +267,7 @@ public:
 
 
   float GetMmPerPixel(){
-    return container.GetMMPerPixel();
+    return container.GetMmPerPixel();
   };
 
 private:

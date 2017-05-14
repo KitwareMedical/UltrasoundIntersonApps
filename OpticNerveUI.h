@@ -64,6 +64,9 @@ protected slots:
   /** Start the application */
   void SetFrequency();
   void SetDepth();
+  
+  void SetNerveDepth();
+  void SetNerveTop();
 
   void ToggleEstimation();
 

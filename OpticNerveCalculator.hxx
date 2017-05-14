@@ -27,6 +27,9 @@ public:
     runningSum = 0;
     currentEstimate = -1;
     mean = 0;
+    nerveOnly = false;
+    depth = 80;
+    height = 20;
   };
  
   ~OpticNerveCalculator(){
@@ -116,14 +119,18 @@ public:
 
      image->SetDirection( direction );
 
-    //TODO: Avoid instantion of filters every time -> setup a pipeline 
+     //Copy in case it changes during calculation
+     bool doNerveOnly = this->nerveOnly;
+
+
+     //TODO: Avoid instantion of filters every time -> setup a pipeline 
      OpticNerveEstimator one;
-     //TODO: do it more centralized
      //change algorithm defaults
+     //TODO: do it more centralized
      //one.algParams.eyeInitialBlurFactor = 3;
      one.algParams.eyeVerticalBorderFactor = 1/20.0;      
      //one.algParams.eyeRingFactor = 1.3;
-     one.algParams.eyeInitialBinaryThreshold = 50;
+     one.algParams.eyeInitialBinaryThreshold = 45;
      //one.algParams.eyeMaskCornerXFactor = 0.9;
      //one.algParams.eyeMaskCornerYFactor = 0.1;
 
@@ -138,7 +145,33 @@ public:
      OpticNerveEstimator::Status status = 
                OpticNerveEstimator::ESTIMATION_UNKNOWN;
      try{
-        status = one.Fit( castImage, true, "debug" );
+        if(doNerveOnly){
+ 
+          //Setup nerve region
+          OpticNerveEstimator::ImageType::RegionType imageRegion = castImage->GetLargestPossibleRegion();
+          OpticNerveEstimator::ImageType::SizeType imageSize = imageRegion.GetSize();
+
+          OpticNerveEstimator::ImageType::IndexType desiredStart;
+          desiredStart[0] = 0;
+          desiredStart[1] = std::max(0, std::min(depth, (int) imageSize[1] - height) );
+
+          OpticNerveEstimator::ImageType::SizeType desiredSize;
+          desiredSize[0] = imageSize[0];
+          desiredSize[1] = std::min(height, (int) imageSize[1]);
+
+          OpticNerveEstimator::ImageType::RegionType desiredRegion(desiredStart, desiredSize);
+
+          bool fitNerve = one.FitNerve( castImage, desiredRegion, "debug", true );
+          if(fitNerve){
+            status =  OpticNerveEstimator::ESTIMATION_SUCCESS;
+          }
+          else{
+            status = OpticNerveEstimator::ESTIMATION_FAIL_NERVE;
+          }
+        }
+        else{
+          status = one.Fit( castImage, true, "debug" );
+        }
      }
      catch( itk::ExceptionObject & err ){
 #ifdef DEBUG_PRINT
@@ -155,12 +188,12 @@ public:
      }
     
      typedef OpticNerveEstimator::RGBImageType RGBImageType;
-     RGBImageType::Pointer overlay = one.GetOverlay();
+     RGBImageType::Pointer overlay = one.GetOverlay(castImage, doNerveOnly);
 
     
      DWORD waitForMutex = WaitForSingleObject(toProcessMutex, INFINITE); 
 
-     currentEstimate = one.GetStem().width;
+     currentEstimate = one.GetNerve().width;
      runningSum += currentEstimate;
      estimates.insert( currentEstimate );
      mean = runningSum / nTotalWrite; 
@@ -250,9 +283,25 @@ public:
 
    bool isRunning(){
      return !stopThreads;
+   };
+
+   void SetDepth(int d){
+     depth =d;
+   }
+   
+   void SetHeight(int h){
+     height = h;
    }
 
+   void SetNerveOnly( bool nOnly){
+     nerveOnly = nOnly;
+   };
+
 private:
+
+  bool nerveOnly;
+  int depth;
+  int height;
 
   //RingBuffer
   int currentWrite;

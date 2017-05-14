@@ -29,8 +29,38 @@ OpticNerveEstimator::Fit( OpticNerveEstimator::ImageType::Pointer origImage,
   if(!fitEyeSucces){
     return ESTIMATION_FAIL_EYE;
   }
-  bool fitStemSucces = FitStem( origImage, eye, prefix, overlay);
-  if(!fitStemSucces){
+
+  //Setup nerve region
+  ImageType::RegionType imageRegion = origImage->GetLargestPossibleRegion();
+  ImageType::SizeType imageSize = imageRegion.GetSize();
+
+  ImageType::IndexType desiredStart;
+  desiredStart[0] = eye.center[0] - algParams.nerveXRegionFactor * eye.radiusY;
+  desiredStart[1] = eye.center[1] + algParams.nerveYRegionFactor * eye.radiusX ;
+
+  ImageType::SizeType desiredSize;
+  desiredSize[0] = 2 * algParams.nerveXRegionFactor * eye.radiusY;
+  desiredSize[1] =     algParams.nerveYSizeFactor * eye.radiusX;
+
+  if(desiredStart[1] > imageSize[1] ){
+    return ESTIMATION_FAIL_NERVE;
+  }
+  if(desiredStart[1] + desiredSize[1] > imageSize[1] ){
+    desiredSize[1] = imageSize[1] - desiredStart[1];
+  }
+
+  if(desiredStart[0] < 0 ){
+    desiredStart[0] = 0;
+  }
+  if(desiredStart[0] + desiredSize[0] > imageSize[0] ){
+    desiredSize[0] = imageSize[0] - desiredStart[0];
+  }
+
+
+  ImageType::RegionType desiredRegion(desiredStart, desiredSize);
+
+  bool fitNerveSucces = FitNerve( origImage, desiredRegion, prefix, overlay);
+  if(!fitNerveSucces){
     return ESTIMATION_FAIL_NERVE;
   }
 
@@ -45,73 +75,12 @@ OpticNerveEstimator::Fit( OpticNerveEstimator::ImageType::Pointer origImage,
   std::cout << "Eye C2:  " << clockEyeC2.GetMean() << std::endl;
   std::cout << "Eye C3:  " << clockEyeC3.GetMean() << std::endl;
   std::cout << std::endl;
-  std::cout << "Stem A:  " << clockStemA.GetMean() << std::endl;
-  std::cout << "Stem B:  " << clockStemB.GetMean() << std::endl;
-  std::cout << "Stem C1: " << clockStemC1.GetMean() << std::endl;
-  std::cout << "Stem C2: " << clockStemC2.GetMean() << std::endl;
+  std::cout << "Nerve A:  " << clockNerveA.GetMean() << std::endl;
+  std::cout << "Nerve B:  " << clockNerveB.GetMean() << std::endl;
+  std::cout << "Nerve C1: " << clockNerveC1.GetMean() << std::endl;
+  std::cout << "Nerve C2: " << clockNerveC2.GetMean() << std::endl;
 #endif
 
-
-  //Return early if no image is required
-  if( !overlay ){
-     return ESTIMATION_SUCCESS;
-  }
-
-
-  ////
-  //4. Create overlay image
-  ////
-  typedef itk::CastImageFilter< ImageType, RGBImageType> RGBCastFilter;
-  RGBCastFilter::Pointer rgbConvert = RGBCastFilter::New();
-  rgbConvert->SetInput( origImage );
-  rgbConvert->Update();
-  overlayImage = rgbConvert->GetOutput(); 
-
-
-  itk::ImageRegionIterator<RGBImageType> overlayIterator2( overlayImage, 
-                                             overlayImage->GetLargestPossibleRegion());
-  itk::ImageRegionIterator<ImageType> eyeIterator( eye.aligned, 
-                                             eye.aligned->GetLargestPossibleRegion() );
-
-  double alpha = 0.15;
-  while( !overlayIterator2.IsAtEnd() ){
-    RGBImageType::PixelType pixel = overlayIterator2.Get();
-    double p = eyeIterator.Get();
-    if(p > 25){
-      pixel[0] = (1-alpha) * pixel[0];
-      pixel[1] = (1-alpha) * pixel[1];
-      pixel[2] = alpha * 255 + (1-alpha) * pixel[2];
-    }
-    overlayIterator2.Set( pixel ); 
-
-    ++eyeIterator; 
-    ++overlayIterator2;
-  }
-
-  itk::ImageRegionIterator<RGBImageType> overlayIterator( overlayImage, 
-                                          stem.originalImageRegion);
-  itk::ImageRegionIterator<ImageType> stemIterator( stem.aligned, 
-                                          stem.aligned->GetLargestPossibleRegion() );
-  alpha = 0.3;
-  while( !overlayIterator.IsAtEnd() ){
-    RGBImageType::PixelType pixel = overlayIterator.Get();
-    double p = stemIterator.Get(); 
-    if(p > 5){
-      pixel[0] = alpha * 255 + (1-alpha) * pixel[0];
-      pixel[1] = (1-alpha) * pixel[1];
-      pixel[2] = (1-alpha) * pixel[2];
-    }
-    overlayIterator.Set( pixel ); 
-    
-    ++stemIterator; 
-    ++overlayIterator;
-  }
-
-
-
-#ifdef DEBUG_IMAGES
-  ImageIO<RGBImageType>::WriteImage( overlayImage, catStrings(prefix, "-overlay.png") );
-#endif
 
    return ESTIMATION_SUCCESS;
 }
@@ -152,7 +121,7 @@ OpticNerveEstimator::CreateEllipseImage( ImageType::SpacingType spacing,
   imageFilter->SetSize( smallSize );
   imageFilter->SetOrigin( origin );
   imageFilter->SetSpacing( smallSpacing );
-  imageFilter->SetDirection( direction );
+  //imageFilter->SetDirection( direction );
 
   EllipseType::Pointer ellipse   = EllipseType::New();
   EllipseType::ArrayType radiusArray;
@@ -247,7 +216,7 @@ OpticNerveEstimator::FitEye( OpticNerveEstimator::ImageType::Pointer inputImage,
   sigma[1] = algParams.eyeInitialBlurFactor * imageSpacing[1];
 
   ITKFilterFunctions<ImageType>::AddHorizontalBorder(image,
-       imageSize[0] * algParams.eyeHorizontalBorderFactor );
+       imageSize[1] * algParams.eyeHorizontalBorderFactor );
   image = ITKFilterFunctions<ImageType>::GaussSmooth(image, sigma);
 
 
@@ -283,7 +252,7 @@ OpticNerveEstimator::FitEye( OpticNerveEstimator::ImageType::Pointer inputImage,
 
 
   ITKFilterFunctions<UnsignedCharImageType>::AddVerticalBorder( sdImage,
-           algParams.eyeVerticalBorderFactor * imageSize[0] );
+           algParams.eyeVerticalBorderFactor * imageSize[1] );
 
   SignedDistanceFilter::Pointer signedDistanceFilter = SignedDistanceFilter::New();
   signedDistanceFilter->SetInput( sdImage );
@@ -402,14 +371,6 @@ OpticNerveEstimator::FitEye( OpticNerveEstimator::ImageType::Pointer inputImage,
   std::cout << "Eye initial radiusX: "<< eye.initialRadiusX << std::endl;
 #endif
 
-  eye.initialCenterIndex[0] = eye.initialRadiusX;
-  eye.initialCenterIndex[1] = eye.initialRadiusY;
-  image->TransformIndexToPhysicalPoint(eye.initialCenterIndex, eye.initialCenter);
-#ifdef DEBUG_PRINT
-  std::cout << "Eye inital center index: " << eye.initialCenterIndex << std::endl;
-  std::cout << "Eye inital center: " << eye.initialCenter << std::endl;
-#endif
-
   //--Step 5
   //  Gaussian smoothing, threshold and rescale
 
@@ -445,9 +406,9 @@ OpticNerveEstimator::FitEye( OpticNerveEstimator::ImageType::Pointer inputImage,
   //   2. Gaussian smoothing, threshold, rescale
 
   double outside = 100;
-  //intial guess of major axis
+  //intial guess of radiusY axis
   double r1 = eye.initialRadiusX;
-  //inital guess of minor axis
+  //inital guess of radiusX axis
   double r2 = eye.initialRadiusY;
   //width of the ellipse ring rf*r1, rf*r2
   ImageType::Pointer e1 = CreateEllipseImage( imageSpacing, imageSize, imageOrigin, imageDirection,
@@ -543,13 +504,13 @@ OpticNerveEstimator::FitEye( OpticNerveEstimator::ImageType::Pointer inputImage,
   RegistrationType::Pointer   registration  = RegistrationType::New();
 
 
-  optimizer->SetGradientConvergenceTolerance( 0.000001 );
-  optimizer->SetLineSearchAccuracy( 0.5 );
-  optimizer->SetDefaultStepLength( 0.00001 );
+  //optimizer->SetGradientConvergenceTolerance( 0.000001 );
+  //optimizer->SetLineSearchAccuracy( 0.5 );
+  //optimizer->SetDefaultStepLength( 0.00001 );
 #ifdef DEBUG_PRINT
-  optimizer->TraceOn();
+  //optimizer->TraceOn();
 #endif
-  optimizer->SetMaximumNumberOfFunctionEvaluations( 20000 );
+  //optimizer->SetMaximumNumberOfFunctionEvaluations( 20000 );
 
 /*
   OptimizerType::ScalesType scales( transform->GetNumberOfParameters() );
@@ -665,34 +626,13 @@ OpticNerveEstimator::FitEye( OpticNerveEstimator::ImageType::Pointer inputImage,
 
 #ifdef DEBUG_IMAGES
     ImageIO<ImageType>::WriteImage( moved, catStrings(prefix, "-eye-registred.tif")  );
-
-
-    ImageType::Pointer ellipseThres = ITKFilterFunctions<ImageType>::ThresholdAbove(moved, 5, 255);
-    CastFilter::Pointer teCast = CastFilter::New();
-    teCast->SetInput( ellipseThres );
-
-    BinaryImageToLabelMapFilterType::Pointer binaryImageToLabelMapFilter = BinaryImageToLabelMapFilterType::New();
-    binaryImageToLabelMapFilter->SetInput( teCast->GetOutput() );
-    binaryImageToLabelMapFilter->Update();
-
-    LabelMapToLabelImageFilterType::Pointer labelMapToLabelImageFilter = LabelMapToLabelImageFilterType::New();
-    labelMapToLabelImageFilter->SetInput(binaryImageToLabelMapFilter->GetOutput());
-    labelMapToLabelImageFilter->Update();
-
-    ImageType::Pointer imageRescale = ITKFilterFunctions<ImageType>::Rescale(inputImage, 0, 255);
-    LabelOverlayImageFilterType::Pointer labelOverlayImageFilter = LabelOverlayImageFilterType::New();
-    labelOverlayImageFilter->SetInput( imageRescale );
-    labelOverlayImageFilter->SetLabelImage(labelMapToLabelImageFilter->GetOutput());
-    labelOverlayImageFilter->SetOpacity(.5);
-    labelOverlayImageFilter->Update();
-
-    ImageIO<RGBImageType>::WriteImage( labelOverlayImageFilter->GetOutput(), catStrings(prefix, "-eye-overlay.png") );
 #endif
+
   }
 
 
   //-- Step 3
-  //   Compute minor and major axis by pushing the radii from the created ellipse
+  //   Compute radiusX and radiusY axis by pushing the radii from the created ellipse
   //   image through the computed transform
 
   AffineTransformType::InputPointType tCenter;
@@ -713,18 +653,18 @@ OpticNerveEstimator::FitEye( OpticNerveEstimator::ImageType::Pointer inputImage,
   AffineTransformType::OutputVectorType tXO = transform->TransformVector(tX, tCenter);
   AffineTransformType::OutputVectorType tYO = transform->TransformVector(tY, tCenter);
 
-  eye.minor =  sqrt(tXO[0]*tXO[0] + tXO[1]*tXO[1]);
-  eye.major =  sqrt(tYO[0]*tYO[0] + tYO[1]*tYO[1]);
+  eye.radiusX =  sqrt(tXO[0]*tXO[0] + tXO[1]*tXO[1]);
+  eye.radiusY =  sqrt(tYO[0]*tYO[0] + tYO[1]*tYO[1]);
 
   //TODO limit transform
-  //if(eye.major < eye.minor){
-  //  std::swap(eye.minor, eye.major);
+  //if(eye.radiusY < eye.radiusX){
+  //  std::swap(eye.radiusX, eye.radiusY);
   //}
 
 #ifdef DEBUG_PRINT
   std::cout << "Eye center: " << eye.centerIndex << std::endl;
-  std::cout << "Eye minor: "  << eye.minor << std::endl;
-  std::cout << "Eye major: "  << eye.major << std::endl;
+  std::cout << "Eye radiusX: "  << eye.radiusX << std::endl;
+  std::cout << "Eye radiusY: "  << eye.radiusY << std::endl;
 
   std::cout << "--- Done Fitting Eye ---" << std::endl << std::endl;
 #endif
@@ -753,14 +693,14 @@ OpticNerveEstimator::FitEye( OpticNerveEstimator::ImageType::Pointer inputImage,
 //see the top of this file
 
 bool
-OpticNerveEstimator::OpticNerveEstimator::FitStem(
+OpticNerveEstimator::OpticNerveEstimator::FitNerve(
                 OpticNerveEstimator::ImageType::Pointer inputImage,
-                OpticNerveEstimator::Eye &eye,
+                OpticNerveEstimator::ImageType::RegionType &desiredRegion,
                 const std::string &prefix,
-                bool alignStem ){
+                bool alignNerve ){
 
 #ifdef DEBUG_PRINT
-  std::cout << "--- Fit stem ---" << std::endl << std::endl;
+  std::cout << "--- Fit nerve ---" << std::endl << std::endl;
 #endif
 
 
@@ -769,12 +709,9 @@ OpticNerveEstimator::OpticNerveEstimator::FitStem(
   ////
 
 #ifdef REPORT_TIMES
-  clockStemA.Start();
+  clockNerveA.Start();
 #endif
 
-  //-- Step 1
-  //   Extract optic nerve region below the eye using the eye location and
-  //   size estimates.
 
   ImageType::SpacingType imageSpacing = inputImage->GetSpacing();
   ImageType::RegionType imageRegion = inputImage->GetLargestPossibleRegion();
@@ -782,60 +719,38 @@ OpticNerveEstimator::OpticNerveEstimator::FitStem(
   ImageType::PointType imageOrigin = inputImage->GetOrigin();
 
 
-  ImageType::IndexType desiredStart;
-  desiredStart[0] = eye.center[0] - algParams.stemXRegionFactor * eye.minor;
-  desiredStart[1] = eye.center[1] + algParams.stemYRegionFactor * eye.major;
 
-  ImageType::SizeType desiredSize;
-  desiredSize[0] = 2 * algParams.stemXRegionFactor * eye.minor;
-  desiredSize[1] =     algParams.stemYSizeFactor * eye.major;
-
-  if(desiredStart[1] > imageSize[1] ){
-    //std::cout << "Could not locate stem area" << std::endl;
-    return false;
-  }
-  if(desiredStart[1] + desiredSize[1] > imageSize[1] ){
-    desiredSize[1] = imageSize[1] - desiredStart[1];
-  }
-
-  if(desiredStart[0] < 0 ){
-    desiredStart[0] = 0;
-  }
-  if(desiredStart[0] + desiredSize[0] > imageSize[0] ){
-    desiredSize[0] = imageSize[0] - desiredStart[0];
-  }
-
-
-  ImageType::RegionType desiredRegion(desiredStart, desiredSize);
-  stem.originalImageRegion = desiredRegion;
-
+  //-- Step 1
+  //Estract nerve region
+  nerve.originalImageRegion = desiredRegion;
   ExtractFilter::Pointer extractFilter = ExtractFilter::New();
   //extractFilter->SetExtractionRegion(desiredRegion);
   extractFilter->SetRegionOfInterest(desiredRegion);
   extractFilter->SetInput( inputImage );
   //extractFilter->SetDirectionCollapseToIdentity();
   extractFilter->Update();
-  ImageType::Pointer stemImageOrig = extractFilter->GetOutput();
+  ImageType::Pointer nerveImageOrig = extractFilter->GetOutput();
 
 
 
-  ImageType::RegionType stemRegion = stemImageOrig->GetLargestPossibleRegion();
-  ImageType::SizeType stemSize = stemRegion.GetSize();
-  ImageType::PointType stemOrigin = stemImageOrig->GetOrigin();
-  ImageType::SpacingType stemSpacing = stemImageOrig->GetSpacing();
-  ImageType::DirectionType stemDirection = stemImageOrig->GetDirection();
+  ImageType::RegionType nerveRegion = nerveImageOrig->GetLargestPossibleRegion();
+  ImageType::SizeType nerveSize = nerveRegion.GetSize();
+  ImageType::PointType nerveOrigin = nerveImageOrig->GetOrigin();
+  ImageType::SpacingType nerveSpacing = nerveImageOrig->GetSpacing();
+  ImageType::DirectionType nerveDirection = nerveImageOrig->GetDirection();
+  ImageType::IndexType nerveIndex = nerveRegion.GetIndex();
 
 #ifdef DEBUG_PRINT
-  std::cout << "Origin, spacing, size and index of stem image" << std::endl;
-  std::cout << stemOrigin << std::endl;
-  std::cout << stemSpacing << std::endl;
-  std::cout << stemSize << std::endl;
-  std::cout << stemRegion.GetIndex() << std::endl;
+  std::cout << "Origin, spacing, size and index of nerve image" << std::endl;
+  std::cout << nerveOrigin << std::endl;
+  std::cout << nerveSpacing << std::endl;
+  std::cout << nerveSize << std::endl;
+  std::cout << nerveIndex << std::endl;
 #endif
 
 
 #ifdef DEBUG_IMAGES
-  ImageIO<ImageType>::WriteImage( stemImageOrig, catStrings(prefix, "-stem.tif") );
+  ImageIO<ImageType>::WriteImage( nerveImageOrig, catStrings(prefix, "-nerve.tif") );
 #endif
 
 
@@ -845,20 +760,20 @@ OpticNerveEstimator::OpticNerveEstimator::FitStem(
   //   3. Rescale individual rows to 0 100
 
   ITKFilterFunctions<ImageType>::SigmaArrayType sigma;
-  sigma[0] = std::min( (double) stemSize[0], algParams.stemInitialSmoothXFactor * stemSpacing[0] );
-  sigma[1] = std::min( (double) stemSize[1], algParams.stemInitialSmoothYFactor * stemSpacing[1] );
-  //sigma[1] = stemSize[1]/12.0 * stemSpacing[1];
-  ImageType::Pointer stemImage = ITKFilterFunctions<ImageType>::GaussSmooth( stemImageOrig, sigma);
+  sigma[0] = algParams.nerveInitialSmoothXFactor * nerveSpacing[0];
+  sigma[1] = algParams.nerveInitialSmoothYFactor * nerveSpacing[1];
+  //sigma[1] = nerveSize[1]/12.0 * nerveSpacing[1];
+  ImageType::Pointer nerveImage = ITKFilterFunctions<ImageType>::GaussSmooth( nerveImageOrig, sigma);
 
   //Rescale indiviudal rows
-  ITKFilterFunctions<ImageType>::RescaleRows(stemImage);
+  ITKFilterFunctions<ImageType>::RescaleRows(nerveImage);
 
 
-  stemImage = ITKFilterFunctions<ImageType>::Rescale(stemImage, 0, 100);
+  nerveImage = ITKFilterFunctions<ImageType>::Rescale(nerveImage, 0, 100);
 
 
 #ifdef DEBUG_IMAGES
-  ImageIO<ImageType>::WriteImage( stemImage, catStrings(prefix, "-stem-smooth.tif") );
+  ImageIO<ImageType>::WriteImage( nerveImage, catStrings(prefix, "-nerve-smooth.tif") );
 #endif
 
 
@@ -870,116 +785,117 @@ OpticNerveEstimator::OpticNerveEstimator::FitStem(
   //   3.5 Distance transform
   //   3.6 Calcuate inital optic nerve width and center
 
-  ImageType::Pointer stemImageB =
-	  ITKFilterFunctions<ImageType>::BinaryThreshold(stemImage, -1,
-                                 algParams.stemInitialThreshold, 0, 100);
+  ImageType::Pointer nerveImageB =
+	  ITKFilterFunctions<ImageType>::BinaryThreshold(nerveImage, -1,
+                                 algParams.nerveInitialThreshold, 0, 100);
 
 #ifdef DEBUG_IMAGES
-  ImageIO<ImageType>::WriteImage( stemImageB, catStrings(prefix, "-stem-sd-thres.tif") );
+  ImageIO<ImageType>::WriteImage( nerveImageB, catStrings(prefix, "-nerve-sd-thres.tif") );
 #endif
-
+/*
   StructuringElementType structuringElement;
-  structuringElement.SetRadius( std::min(imageSize[0], imageSize[1]) * algParams.stemOpeningRadiusFactor  );
+  structuringElement.SetRadius( std::min(imageSize[0], imageSize[1]) * algParams.nerveOpeningRadiusFactor  );
   structuringElement.CreateStructuringElement();
   OpeningFilter::Pointer openingFilter = OpeningFilter::New();
-  openingFilter->SetInput(stemImageB);
+  openingFilter->SetInput(nerveImageB);
   openingFilter->SetKernel(structuringElement);
   openingFilter->SetForegroundValue(100.0);
   openingFilter->Update();
-  stemImageB = openingFilter->GetOutput();
+  nerveImageB = openingFilter->GetOutput();
+*/
 
 #ifdef DEBUG_IMAGES
-  ImageIO<ImageType>::WriteImage( stemImageB, catStrings(prefix, "-stem-morpho.tif") );
+  ImageIO<ImageType>::WriteImage( nerveImageB, catStrings(prefix, "-nerve-morpho.tif") );
 #endif
 
-  CastFilter::Pointer stemCastFilter = CastFilter::New();
-  stemCastFilter->SetInput( stemImageB );
-  stemCastFilter->Update();
-  UnsignedCharImageType::Pointer stemImage2 = stemCastFilter->GetOutput();
+  CastFilter::Pointer nerveCastFilter = CastFilter::New();
+  nerveCastFilter->SetInput( nerveImageB );
+  nerveCastFilter->Update();
+  UnsignedCharImageType::Pointer nerveImage2 = nerveCastFilter->GetOutput();
 
-  ITKFilterFunctions<UnsignedCharImageType>::AddVerticalBorder(stemImage2,
-               std::min(imageSize[0], imageSize[1]) * algParams.stemVerticalBorderFactor );
-  ITKFilterFunctions<UnsignedCharImageType>::AddHorizontalBorder(stemImage2, algParams.stemHorizontalBoder );
+  ITKFilterFunctions<UnsignedCharImageType>::AddVerticalBorder(nerveImage2,
+               std::min(imageSize[0], imageSize[1]) * algParams.nerveVerticalBorderFactor );
+  ITKFilterFunctions<UnsignedCharImageType>::AddHorizontalBorder(nerveImage2, algParams.nerveHorizontalBoder );
 
-  SignedDistanceFilter::Pointer stemDistanceFilter = SignedDistanceFilter::New();
-  stemDistanceFilter->SetInput( stemImage2 );
-  stemDistanceFilter->SetInsideValue(100);
-  stemDistanceFilter->SetOutsideValue(0);
-  stemDistanceFilter->Update();
-  ImageType::Pointer stemDistance = stemDistanceFilter->GetOutput();
+  SignedDistanceFilter::Pointer nerveDistanceFilter = SignedDistanceFilter::New();
+  nerveDistanceFilter->SetInput( nerveImage2 );
+  nerveDistanceFilter->SetInsideValue(100);
+  nerveDistanceFilter->SetOutsideValue(0);
+  nerveDistanceFilter->Update();
+  ImageType::Pointer nerveDistance = nerveDistanceFilter->GetOutput();
 
 #ifdef DEBUG_IMAGES
-  ImageIO<ImageType>::WriteImage( stemDistance, catStrings(prefix, "-stem-distance.tif") );
+  ImageIO<ImageType>::WriteImage( nerveDistance, catStrings(prefix, "-nerve-distance.tif") );
 #endif
 
   //Compute max of distance transfrom
-  ImageCalculatorFilterType::Pointer stemCalculatorFilter  = ImageCalculatorFilterType::New ();
-  stemCalculatorFilter->SetImage( stemDistance );
-  stemCalculatorFilter->Compute();
+  ImageCalculatorFilterType::Pointer nerveCalculatorFilter  = ImageCalculatorFilterType::New ();
+  nerveCalculatorFilter->SetImage( nerveDistance );
+  nerveCalculatorFilter->Compute();
 
-  stem.initialWidth = stemCalculatorFilter->GetMaximum();
+  nerve.initialWidth = nerveCalculatorFilter->GetMaximum();
 
-  if(stem.initialWidth <= 0 ){
+  if(nerve.initialWidth <= 0 ){
      return false;
   }
-  stem.initialCenterIndex = stemCalculatorFilter->GetIndexOfMaximum();
-  stemImage->TransformIndexToPhysicalPoint(stem.initialCenterIndex, stem.initialCenter);
+  nerve.initialCenterIndex = nerveCalculatorFilter->GetIndexOfMaximum();
+  nerveImage->TransformIndexToPhysicalPoint(nerve.initialCenterIndex, nerve.initialCenter);
 
 #ifdef DEBUG_PRINT
-  std::cout << "Approximate width of stem: " <<  2 * stem.initialWidth << std::endl;
-  std::cout << "Approximate stem center: " << stem.initialCenter << std::endl;
-  std::cout << "Approximate stem center Index: " << stem.initialCenterIndex << std::endl;
+  std::cout << "Approximate width of nerve: " <<  2 * nerve.initialWidth << std::endl;
+  std::cout << "Approximate nerve center: " << nerve.initialCenter << std::endl;
+  std::cout << "Approximate nerve center Index: " << nerve.initialCenterIndex << std::endl;
 #endif
 
   //-- Step 4
   //   Rescale rows left and right of the approximate center to 0 - 100
 
-  float centerIntensity = stemImage->GetPixel( stem.initialCenterIndex );
+  float centerIntensity = nerveImage->GetPixel( nerve.initialCenterIndex );
 #ifdef DEBUG_PRINT
-  std::cout << "Approximate stem center intensity: " << centerIntensity << std::endl;
+  std::cout << "Approximate nerve center intensity: " << centerIntensity << std::endl;
 #endif
-  for(int i=0; i<stemSize[1]; i++){
+  for(int i=0; i<nerveSize[1]; i++){
     ImageType::IndexType index;
     index[1] = i;
     float maxIntensityLeft = 0;
-    for(int j=0; j<stem.initialCenterIndex[0]; j++){
+    for(int j=0; j<nerve.initialCenterIndex[0]; j++){
       index[0] = j;
-      maxIntensityLeft = std::max( stemImage->GetPixel(index), maxIntensityLeft );
+      maxIntensityLeft = std::max( nerveImage->GetPixel(index), maxIntensityLeft );
     }
-    for(int j=0; j<stem.initialCenterIndex[0]; j++){
+    for(int j=0; j<nerve.initialCenterIndex[0]; j++){
       index[0] = j;
       float value = 0;
       if(maxIntensityLeft > centerIntensity ){
-        value = ( stemImage->GetPixel(index) - centerIntensity ) /
+        value = ( nerveImage->GetPixel(index) - centerIntensity ) /
 		    ( maxIntensityLeft - centerIntensity )  ;
         value = std::max(0.f, value)*100;
         value = std::min(100.f, value);
       }
-      stemImage->SetPixel(index, value );
+      nerveImage->SetPixel(index, value );
     }
 
     float maxIntensityRight = 0;
-    for(int j=stem.initialCenterIndex[0]; j<stemSize[0]; j++){
+    for(int j=nerve.initialCenterIndex[0]; j<nerveSize[0]; j++){
       index[0] = j;
-      maxIntensityRight = std::max( stemImage->GetPixel(index), maxIntensityRight );
+      maxIntensityRight = std::max( nerveImage->GetPixel(index), maxIntensityRight );
     }
-    for(int j=stem.initialCenterIndex[0]; j<stemSize[0]; j++){
+    for(int j=nerve.initialCenterIndex[0]; j<nerveSize[0]; j++){
       index[0] = j;
       float value = 0;
       if(maxIntensityRight > centerIntensity ){
-        value = ( stemImage->GetPixel(index) - centerIntensity ) /
+        value = ( nerveImage->GetPixel(index) - centerIntensity ) /
 		    ( maxIntensityRight - centerIntensity ) ;
         value = std::max(0.f, value) * 100;
         value = std::min(100.f, value);
       }
-      stemImage->SetPixel(index, value  );
+      nerveImage->SetPixel(index, value  );
     }
 
 
   }
 
 #ifdef DEBUG_IMAGES
-  ImageIO<ImageType>::WriteImage( stemImage, catStrings(prefix, "-stem-scaled.tif") );
+  ImageIO<ImageType>::WriteImage( nerveImage, catStrings(prefix, "-nerve-scaled.tif") );
 #endif
 
 
@@ -987,11 +903,11 @@ OpticNerveEstimator::OpticNerveEstimator::FitStem(
   //-- Step 5
   //   Binary threshold
 
-  stemImage =   ITKFilterFunctions<ImageType>::BinaryThreshold(stemImage, -1,
-                                             algParams.stemRegistrationThreshold, 0, 100);
+  nerveImage =   ITKFilterFunctions<ImageType>::BinaryThreshold(nerveImage, -1,
+                                             algParams.nerveRegistrationThreshold, 0, 100);
 
 #ifdef DEBUG_PRINT
-  std::cout << "Stem threshold: " << algParams.stemRegistrationThreshold << std::endl;
+  std::cout << "Nerve threshold: " << algParams.nerveRegistrationThreshold << std::endl;
 #endif
 
 /*
@@ -999,11 +915,11 @@ OpticNerveEstimator::OpticNerveEstimator::FitStem(
   structuringElement2.SetRadius( 10 );
   structuringElement2.CreateStructuringElement();
   OpeningFilter::Pointer openingFilter2 = OpeningFilter::New();
-  openingFilter2->SetInput(stemImage);
+  openingFilter2->SetInput(nerveImage);
   openingFilter2->SetKernel(structuringElement2);
   openingFilter2->SetForegroundValue(100.0);
   openingFilter2->Update();
-  stemImage = openingFilter2->GetOutput();
+  nerveImage = openingFilter2->GetOutput();
 */
 
 
@@ -1015,45 +931,45 @@ OpticNerveEstimator::OpticNerveEstimator::FitStem(
   //  5.3 Distance transform
   //  5.4 Refine intial estimates
 
-  CastFilter::Pointer stemCastFilter2 = CastFilter::New();
-  stemCastFilter2->SetInput( stemImage );
-  stemCastFilter2->Update();
-  UnsignedCharImageType::Pointer stemImage3 = stemCastFilter2->GetOutput();
+  CastFilter::Pointer nerveCastFilter2 = CastFilter::New();
+  nerveCastFilter2->SetInput( nerveImage );
+  nerveCastFilter2->Update();
+  UnsignedCharImageType::Pointer nerveImage3 = nerveCastFilter2->GetOutput();
 
-  ITKFilterFunctions<UnsignedCharImageType>::AddVerticalBorder(stemImage3,
-            algParams.stemRefineVerticalBorderFactor* std::min(imageSize[0], imageSize[1]) );
-  ITKFilterFunctions<UnsignedCharImageType>::AddHorizontalBorder(stemImage3,
-            algParams.stemHorizontalBoder );
+  ITKFilterFunctions<UnsignedCharImageType>::AddVerticalBorder(nerveImage3,
+            algParams.nerveRefineVerticalBorderFactor* std::min(imageSize[0], imageSize[1]) );
+  ITKFilterFunctions<UnsignedCharImageType>::AddHorizontalBorder(nerveImage3,
+            algParams.nerveHorizontalBoder );
 
-  SignedDistanceFilter::Pointer stemDistanceFilter2 = SignedDistanceFilter::New();
-  stemDistanceFilter2->SetInput( stemImage3 );
-  stemDistanceFilter2->SetInsideValue(100);
-  stemDistanceFilter2->SetOutsideValue(0);
-  stemDistanceFilter2->Update();
-  ImageType::Pointer stemDistance2 = stemDistanceFilter2->GetOutput();
+  SignedDistanceFilter::Pointer nerveDistanceFilter2 = SignedDistanceFilter::New();
+  nerveDistanceFilter2->SetInput( nerveImage3 );
+  nerveDistanceFilter2->SetInsideValue(100);
+  nerveDistanceFilter2->SetOutsideValue(0);
+  nerveDistanceFilter2->Update();
+  ImageType::Pointer nerveDistance2 = nerveDistanceFilter2->GetOutput();
 
 
 
 #ifdef DEBUG_IMAGES
-  ImageIO<ImageType>::WriteImage( stemDistance, catStrings(prefix, "-stem-scaled-distance.tif") );
+  ImageIO<ImageType>::WriteImage( nerveDistance, catStrings(prefix, "-nerve-scaled-distance.tif") );
 #endif
 
   //Compute max of distance transfrom
-  ImageCalculatorFilterType::Pointer stemCalculatorFilter2  = ImageCalculatorFilterType::New ();
-  stemCalculatorFilter2->SetImage( stemDistance2 );
-  stemCalculatorFilter2->Compute();
+  ImageCalculatorFilterType::Pointer nerveCalculatorFilter2  = ImageCalculatorFilterType::New ();
+  nerveCalculatorFilter2->SetImage( nerveDistance2 );
+  nerveCalculatorFilter2->Compute();
 
-  stem.initialWidth = stemCalculatorFilter2->GetMaximum();
-  if(stem.initialWidth <= 0 ){
+  nerve.initialWidth = nerveCalculatorFilter2->GetMaximum();
+  if(nerve.initialWidth <= 0 ){
      return false;
   }
-  stem.initialCenterIndex = stemCalculatorFilter2->GetIndexOfMaximum();
-  stemImage->TransformIndexToPhysicalPoint(stem.initialCenterIndex, stem.initialCenter);
+  nerve.initialCenterIndex = nerveCalculatorFilter2->GetIndexOfMaximum();
+  nerveImage->TransformIndexToPhysicalPoint(nerve.initialCenterIndex, nerve.initialCenter);
 
 #ifdef DEBUG_PRINT
-  std::cout << "Refined approximate width of stem: " <<  2 * stem.initialWidth << std::endl;
-  std::cout << "Refined approximate stem center: " << stem.initialCenter << std::endl;
-  std::cout << "Refined approximate stem center Index: " << stem.initialCenterIndex << std::endl;
+  std::cout << "Refined approximate width of nerve: " <<  2 * nerve.initialWidth << std::endl;
+  std::cout << "Refined approximate nerve center: " << nerve.initialCenter << std::endl;
+  std::cout << "Refined approximate nerve center Index: " << nerve.initialCenterIndex << std::endl;
 #endif
 
 
@@ -1065,27 +981,27 @@ OpticNerveEstimator::OpticNerveEstimator::FitStem(
 
   //-- Step 6
   //   Add a bit of smoothing for the registration process
-  sigma[0] = algParams.stemRegsitrationSmooth * stemSpacing[0];
-  sigma[1] = algParams.stemRegsitrationSmooth * stemSpacing[1];
-  stemImage = ITKFilterFunctions<ImageType>::GaussSmooth(stemImage, sigma);
+  sigma[0] = algParams.nerveRegsitrationSmooth * nerveSpacing[0];
+  sigma[1] = algParams.nerveRegsitrationSmooth * nerveSpacing[1];
+  nerveImage = ITKFilterFunctions<ImageType>::GaussSmooth(nerveImage, sigma);
 
 
 #ifdef DEBUG_IMAGES
-  ImageIO<ImageType>::WriteImage( stemImage, catStrings(prefix, "-stem-thres.tif") );
+  ImageIO<ImageType>::WriteImage( nerveImage, catStrings(prefix, "-nerve-thres.tif") );
 #endif
 
 #ifdef REPORT_TIMES
-  clockStemA.Stop();
+  clockNerveA.Stop();
 #endif
 
 
   /////
   //B. Prepare fixed image.
-  //  Create artifical stem image to fit to region of interest.
+  //  Create artifical nerve image to fit to region of interest.
   /////
 
 #ifdef REPORT_TIMES
-  clockStemB.Start();
+  clockNerveB.Start();
 #endif
 
   //--Step 1 and C) 1
@@ -1095,58 +1011,58 @@ OpticNerveEstimator::OpticNerveEstimator::FitStem(
 
 
   ImageType::Pointer moving = ImageType::New();
-  moving->SetRegions(stemRegion);
+  moving->SetRegions(nerveRegion);
   moving->Allocate();
   moving->FillBuffer( 0.0 );
-  moving->SetSpacing(stemSpacing);
-  moving->SetOrigin(stemOrigin);
-  moving->SetDirection( stemDirection );
+  moving->SetSpacing(nerveSpacing);
+  moving->SetOrigin(nerveOrigin);
+  moving->SetDirection( nerveDirection );
 
   UnsignedCharImageType::Pointer movingMask = UnsignedCharImageType::New();
-  movingMask->SetRegions(stemRegion);
+  movingMask->SetRegions(nerveRegion);
   movingMask->Allocate();
   movingMask->FillBuffer( itk::NumericTraits< unsigned char >::Zero);
-  movingMask->SetSpacing(stemSpacing);
-  movingMask->SetOrigin(stemOrigin);
+  movingMask->SetSpacing(nerveSpacing);
+  movingMask->SetOrigin(nerveOrigin);
 
-  int stemYStart   = eye.initialRadiusY * (1 - algParams.stemYRegionFactor);
-  int stemXStart1  = stem.initialCenterIndex[0] - 1.5 * stem.initialWidth / stemSpacing[0];
-  int stemXEnd1    = stem.initialCenterIndex[0] - 1 * stem.initialWidth / stemSpacing[0];
-  int stemXStart2  = stem.initialCenterIndex[0] + 1 * stem.initialWidth / stemSpacing[0];
-  int stemXEnd2    = stem.initialCenterIndex[0] + 1.5 * stem.initialWidth / stemSpacing[0];
+  int nerveYStart   = eye.initialRadiusY * (1 - algParams.nerveYRegionFactor);
+  int nerveXStart1  = nerve.initialCenterIndex[0] - 1.5 * nerve.initialWidth / nerveSpacing[0];
+  int nerveXEnd1    = nerve.initialCenterIndex[0] - 1 * nerve.initialWidth / nerveSpacing[0];
+  int nerveXStart2  = nerve.initialCenterIndex[0] + 1 * nerve.initialWidth / nerveSpacing[0];
+  int nerveXEnd2    = nerve.initialCenterIndex[0] + 1.5 * nerve.initialWidth / nerveSpacing[0];
 
 
-  if(stemXStart1 < 0){
-    stemXStart1 = 0;
+  if(nerveXStart1 < 0){
+    nerveXStart1 = 0;
   }
-  if( stemXEnd2 >= stemSize[0] ){
-    stemXEnd2 = stemSize[0];
+  if( nerveXEnd2 >= nerveSize[0] ){
+    nerveXEnd2 = nerveSize[0];
   }
-  if(stemXEnd2 < stemXStart2){
-    //std::cout << "Failed to locate stem" << std::endl;
+  if(nerveXEnd2 < nerveXStart2){
+    //std::cout << "Failed to locate nerve" << std::endl;
     return false;
   }
 
-  for(int i=stemYStart; i<stemSize[1]; i++){
+  for(int i=nerveYStart; i<nerveSize[1]; i++){
      ImageType::IndexType index;
      index[1] = i;
-     for(int j=stemXStart1; j<stemXEnd2; j++){
+     for(int j=nerveXStart1; j<nerveXEnd2; j++){
        index[0]=j;
        movingMask->SetPixel(index, 255);
      }
 
-     for(int j=stemXStart1; j<stemXEnd1; j++){
+     for(int j=nerveXStart1; j<nerveXEnd1; j++){
        index[0]=j;
        moving->SetPixel(index, 100.0);
      }
-     for(int j=stemXStart2; j<stemXEnd2; j++){
+     for(int j=nerveXStart2; j<nerveXEnd2; j++){
        index[0]=j;
        moving->SetPixel(index, 100.0);
      }
   }
 
 #ifdef DEBUG_IMAGES
-  ImageIO<UnsignedCharImageType>::WriteImage( movingMask, catStrings(prefix, "-stem-mask.tif") );
+  ImageIO<UnsignedCharImageType>::WriteImage( movingMask, catStrings(prefix, "-nerve-mask.tif") );
 #endif
 
 
@@ -1154,24 +1070,24 @@ OpticNerveEstimator::OpticNerveEstimator::FitStem(
   //   Gauss smoothing
 
 
-  sigma[0] = algParams.stemRegsitrationSmooth * stemSpacing[0];
-  sigma[1] = algParams.stemRegsitrationSmooth * stemSpacing[1];
+  sigma[0] = algParams.nerveRegsitrationSmooth * nerveSpacing[0];
+  sigma[1] = algParams.nerveRegsitrationSmooth * nerveSpacing[1];
   moving = ITKFilterFunctions<ImageType>::GaussSmooth(moving, sigma);
 
 #ifdef DEBUG_IMAGES
-  ImageIO<ImageType>::WriteImage( moving, catStrings( prefix, "-stem-moving.tif" ) );
+  ImageIO<ImageType>::WriteImage( moving, catStrings( prefix, "-nerve-moving.tif" ) );
 #endif
 
 #ifdef REPORT_TIMES
-  clockStemB.Stop();
+  clockNerveB.Stop();
 #endif
 
   ////
-  //C. Registration of artifical stem image to threhsold stem image
+  //C. Registration of artifical nerve image to threhsold nerve image
   ////
 
 #ifdef REPORT_TIMES
-  clockStemC1.Start();
+  clockNerveC1.Start();
 #endif
 
   //-- Step 2 (Step 1 was inclued in B)
@@ -1180,7 +1096,7 @@ OpticNerveEstimator::OpticNerveEstimator::FitStem(
 
 
   SimilarityTransformType::Pointer transform = SimilarityTransformType::New();
-  transform->SetCenter( stem.initialCenter );
+  transform->SetCenter( nerve.initialCenter );
 
 
   MetricType::Pointer         metric        = MetricType::New();
@@ -1189,13 +1105,13 @@ OpticNerveEstimator::OpticNerveEstimator::FitStem(
   InterpolatorType::Pointer   fixedInterpolator  = InterpolatorType::New();
   RegistrationType::Pointer   registration  = RegistrationType::New();
 
-  optimizer->SetGradientConvergenceTolerance( 0.000001 );
-  optimizer->SetLineSearchAccuracy( 0.5 );
-  optimizer->SetDefaultStepLength( 0.00001 );
+  //optimizer->SetGradientConvergenceTolerance( 0.000001 );
+  //optimizer->SetLineSearchAccuracy( 0.5 );
+  //optimizer->SetDefaultStepLength( 0.00001 );
 #ifdef DEBUG_PRINT
-  optimizer->TraceOn();
+  //optimizer->TraceOn();
 #endif
-  optimizer->SetMaximumNumberOfFunctionEvaluations( 20000 );
+  //optimizer->SetMaximumNumberOfFunctionEvaluations( 20000 );
 
 
   //Using a Quasi-Newton method, make sure scales are set to identity to
@@ -1219,7 +1135,7 @@ OpticNerveEstimator::OpticNerveEstimator::FitStem(
 
   registration->SetMetric(        metric        );
   registration->SetOptimizer(     optimizer     );
-  registration->SetMovingImage(    stemImage    );
+  registration->SetMovingImage(    nerveImage    );
   registration->SetFixedImage(   moving  );
 
 #ifdef DEBUG_PRINT
@@ -1271,14 +1187,14 @@ OpticNerveEstimator::OpticNerveEstimator::FitStem(
 #endif
 
 #ifdef REPORT_TIMES
-  clockStemC1.Stop();
+  clockNerveC1.Stop();
 #endif
 
 #ifdef REPORT_TIMES
-  clockStemC2.Start();
+  clockNerveC2.Start();
 #endif
 
-  if(alignStem){
+  if(alignNerve){
     SimilarityTransformType::Pointer inverse = SimilarityTransformType::New();
     transform->GetInverse( inverse );
 
@@ -1287,75 +1203,72 @@ OpticNerveEstimator::OpticNerveEstimator::FitStem(
     ResampleFilterType::Pointer resampler = ResampleFilterType::New();
     resampler->SetInput( moving );
     resampler->SetTransform( inverse );
-    resampler->SetSize( stemSize );
-    resampler->SetOutputOrigin(  stemOrigin );
-    resampler->SetOutputSpacing( stemSpacing );
-    resampler->SetOutputDirection( stemImage->GetDirection() );
+    resampler->SetSize( nerveSize );
+    resampler->SetOutputOrigin(  nerveOrigin );
+    resampler->SetOutputSpacing( nerveSpacing );
+    resampler->SetOutputDirection( nerveImage->GetDirection() );
     resampler->SetDefaultPixelValue( 0 );
     resampler->Update();
     ImageType::Pointer moved = resampler->GetOutput();
 
-    stem.aligned = moved;
+    nerve.aligned = moved;
 
 
 #ifdef DEBUG_IMAGES
-    ImageIO<ImageType>::WriteImage(moved, catStrings(prefix, "-stem-registered.tif") );
-
-    moved = ITKFilterFunctions<ImageType>::ThresholdAbove(moved, 5, 255);
-
-    CastFilter::Pointer movingCast = CastFilter::New();
-    movingCast->SetInput( moved );
-
-    BinaryImageToLabelMapFilterType::Pointer binaryImageToLabelMapFilter = BinaryImageToLabelMapFilterType::New();
-    binaryImageToLabelMapFilter->SetInput( movingCast->GetOutput() );
-    binaryImageToLabelMapFilter->Update();
-
-    LabelMapToLabelImageFilterType::Pointer labelMapToLabelImageFilter = LabelMapToLabelImageFilterType::New();
-    labelMapToLabelImageFilter->SetInput(binaryImageToLabelMapFilter->GetOutput());
-    labelMapToLabelImageFilter->Update();
-
-    ImageType::Pointer stemOrigRescaled = ITKFilterFunctions<ImageType>::Rescale( stemImageOrig, 0, 255);
-    LabelOverlayImageFilterType::Pointer labelOverlayImageFilter = LabelOverlayImageFilterType::New();
-    labelOverlayImageFilter->SetInput( stemOrigRescaled );
-    labelOverlayImageFilter->SetLabelImage(labelMapToLabelImageFilter->GetOutput());
-    labelOverlayImageFilter->SetOpacity(.25);
-    labelOverlayImageFilter->Update();
-
-
-
-    ImageIO<RGBImageType>::WriteImage( labelOverlayImageFilter->GetOutput(), catStrings(prefix, "-stem-overlay.png") );
+    ImageIO<ImageType>::WriteImage(moved, catStrings(prefix, "-nerve-registered.tif") );
 #endif
   }
 
 
 
   //-- Step 3
-  //   Compute stem width by pushing intital width through the transform
+  //   Compute nerve width by pushing intital width through the transform
 
   SimilarityTransformType::InputPointType tCenter;
-  tCenter[0] = stem.initialCenter[0];
-  tCenter[1] = stem.initialCenter[1];
+  tCenter[0] = nerve.initialCenter[0];
+  tCenter[1] = nerve.initialCenter[1];
 
   SimilarityTransformType::InputVectorType tX;
-  tX[0] = stem.initialWidth;
+  tX[0] = nerve.initialWidth;
   tX[1] = 0;
 
-  stem.center = transform->TransformPoint(tCenter);
-  stemImage->TransformPhysicalPointToIndex(stem.center, stem.centerIndex);
+  nerve.center = transform->TransformPoint(tCenter);
+  nerveImage->TransformPhysicalPointToIndex(nerve.center, nerve.centerIndex);
 
   SimilarityTransformType::OutputVectorType tXO = transform->TransformVector(tX, tCenter);
 
-  stem.width =  sqrt(tXO[0]*tXO[0] + tXO[1]*tXO[1]);
+  nerve.width =  sqrt(tXO[0]*tXO[0] + tXO[1]*tXO[1]);
+
+  //Check validity of estimates
+
+  //limit rotation to 45 degress
+  double rotation = transform->GetRotation();
+  if( std::fabs( rotation ) > M_PI / 4.0 ){
+    return false;
+  }
+
+  //Check if nerve width falls our of bounds
+  SimilarityTransformType::OutputVectorType tW = tXO;
+  tW[0] *= imageSpacing[0]; 
+  tW[1] *= imageSpacing[1]; 
+  if( nerve.centerIndex[0] - tW[0] < nerveIndex[0] || 
+      nerve.centerIndex[0] + tW[0]> nerveIndex[0] + nerveSize[0] ){
+    return ESTIMATION_FAIL_NERVE;
+  }
+  if( nerve.centerIndex[1] - tW[1] < nerveIndex[1] || 
+      nerve.centerIndex[1] + tW[1] > nerveIndex[1] + nerveSize[1] ){
+    return ESTIMATION_FAIL_NERVE;
+  }
 
 #ifdef DEBUG_PRINT
-  std::cout << "Stem center: " << stem.centerIndex << std::endl;
-  std::cout << "Stem width: "  << stem.width*2 << std::endl;
+  std::cout << "Nerve center: " << nerve.centerIndex << std::endl;
+  std::cout << "Nerve width: "  << nerve.width*2 << std::endl;
 
-  std::cout << "--- Done fitting stem ---" << std::endl << std::endl;
+  std::cout << "--- Done fitting nerve ---" << std::endl << std::endl;
 #endif
 
 #ifdef REPORT_TIMES
-  clockStemC2.Stop();
+  clockNerveC2.Stop();
 #endif
 
    return true;

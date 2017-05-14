@@ -27,7 +27,7 @@ limitations under the License.
 //is towards the bottom of the image and depth is along the y-Axis.
 //
 //The computation involves two main steps:
-// 1. Estimation of the eye orb location and minor and major axis length
+// 1. Estimation of the eye orb location and radiusX and radiusY axis length
 // 2. Estimation of the optic nerve width
 //Both steps include several substeps which results in many parameters
 //that can be tuned if needed.
@@ -63,7 +63,7 @@ limitations under the License.
 //     macthing the create ellipse image, but not including left and right corners
 //     of the eye (they are often black but sometimes white)
 //  2. Affine registration centered on the fixed ellipse image
-//  3. Compute minor and major axis by pushing the radii from the created ellipse
+//  3. Compute radiusX and radiusY axis by pushing the radii from the created ellipse
 //     image through the computed transform
 //
 //
@@ -100,21 +100,20 @@ limitations under the License.
 // C) Similarity transfrom registration
 //  1. Create a mask that includes the two bars only
 //  2. Similarity transfrom registration centered on the fixed bars image
-//  3. Compute stem width by pushing intital width through the transform
+//  3. Compute nerve width by pushing intital width through the transform
 //
 
-
-
+#define _USE_MATH_DEFINES 
 
 //If DEBUG_IMAGES is defined several intermedate images are stored
-//#define DEBUG_IMAGES
+#define DEBUG_IMAGES
 
 //If DEBUG_PRINT is defined print out intermediate messages
-//#define DEBUG_PRINT
+#define DEBUG_PRINT
 
 //If REPORT_TIMES is defined perform time measurments of individual steps
 //and report them
-//#define REPORT_TIMES
+#define REPORT_TIMES
 #ifdef REPORT_TIMES
 #include "itkTimeProbe.h"
 #endif
@@ -126,6 +125,8 @@ limitations under the License.
 #include "itkLinearInterpolateImageFunction.h"
 #include "itkMeanSquaresImageToImageMetricv4.h"
 #include "itkLBFGSOptimizerv4.h"
+#include "itkConjugateGradientLineSearchOptimizerv4.h"
+
 #include "itkResampleImageFilter.h"
 #include "itkApproximateSignedDistanceMapImageFilter.h"
 #include "itkCastImageFilter.h"
@@ -146,6 +147,7 @@ limitations under the License.
 #include "itkEllipseSpatialObject.h"
 #include "itkSpatialObjectToImageFilter.h"
 
+#include <cmath>
 #include <algorithm>
 
 #include "ImageIO.h"
@@ -182,11 +184,9 @@ public:
   typedef itk::BinaryImageToLabelMapFilter<UnsignedCharImageType> BinaryImageToLabelMapFilterType;
   typedef itk::LabelMapToLabelImageFilter<BinaryImageToLabelMapFilterType::OutputImageType, UnsignedCharImageType> LabelMapToLabelImageFilterType;
 
-  typedef itk::LabelMapToLabelImageFilter<UnsignedCharImageType, UnsignedCharImageType> LabelMapToLabelImageFilterType2;
 
   //registration
-  //typedef itk::GradientDescentOptimizer       OptimizerType;
-  //typedef itk::ConjugateGradientOptimizer       OptimizerType;
+  //typedef itk::ConjugateGradientLineSearchOptimizerv4 OptimizerType;
   typedef itk::LBFGSOptimizerv4       OptimizerType;
 
   typedef itk::MeanSquaresImageToImageMetricv4< ImageType, ImageType >  MetricType;
@@ -222,24 +222,27 @@ public:
      double eyeMaskCornerYFactor = 0.6;
      double eyeRegistrationSize = 100;
 
-     //Stem fitting paramaters
-     double stemXRegionFactor = 1;
-     double stemYRegionFactor = 0.85;
-     double stemYSizeFactor =  1.2;
-     double stemInitialSmoothXFactor = 4;
-     double stemInitialSmoothYFactor = 20;
-     int    stemInitialThreshold = 75;
-     double stemOpeningRadiusFactor = 1/50.0;
-     double stemVerticalBorderFactor = 1/7.0;
-     int    stemHorizontalBoder = 2;
-     int    stemRegistrationThreshold = 65;
-     double stemRefineVerticalBorderFactor = 1/20.0;
-     double stemRegsitrationSmooth = 3;
+     //Nerve fitting paramaters
+     double nerveXRegionFactor = 1;
+     double nerveYRegionFactor = 0.85;
+     double nerveYSizeFactor =  1.2;
+     double nerveInitialSmoothXFactor = 2;
+     double nerveInitialSmoothYFactor = 20;
+     int    nerveInitialThreshold = 75;
+     double nerveOpeningRadiusFactor = 1/50.0;
+     double nerveVerticalBorderFactor = 1/7.0;
+     int    nerveHorizontalBoder = 2;
+     int    nerveRegistrationThreshold = 55;
+     double nerveRefineVerticalBorderFactor = 1/20.0;
+     double nerveRegsitrationSmooth = 3;
   };
+
 
   //Allow paramters to be set directly
   Parameters algParams;
 
+
+  //Estimation feedback
   enum Status{
     ESTIMATION_SUCCESS,
     ESTIMATION_FAIL_EYE,
@@ -247,15 +250,17 @@ public:
     ESTIMATION_UNKNOWN
   };
 
-  //Storage for eye and stem location and sizes
+
+
+  //Storage for eye and nerve location and sizes
   struct Eye{
     ImageType::IndexType initialCenterIndex;
     ImageType::PointType initialCenter;
     ImageType::IndexType centerIndex;
     ImageType::PointType center;
     double initialRadius = -1;
-    double minor = -1;
-    double major = -1;
+    double radiusX = -1;
+    double radiusY = -1;
 
     double initialRadiusX = -1;
     double initialRadiusY = -1;
@@ -265,7 +270,7 @@ public:
 
 
 
-  struct Stem{
+  struct Nerve{
     ImageType::IndexType initialCenterIndex;
     ImageType::PointType initialCenter;
     ImageType::IndexType centerIndex;
@@ -280,23 +285,104 @@ public:
 
 
 
+  //Helper function
+  std::string catStrings(std::string s1, std::string s2);
 
 
 
-
+  //Fits first the eye and then extract the nerve region from the eye paramaters
   Status Fit( ImageType::Pointer origImage, bool overlay = false,
             std::string prefix = "");
+
+
+  //Fit an ellipse to an eye ultrasound image in three main steps
+  // A) Prepare moving Image
+  // B) Prepare fixed image
+  // C) Affine registration
+  //
+  //For a detailed descritpion and overview of the whole pipleine
+  //see the top of this file
+  bool FitEye( ImageType::Pointer inputImage, 
+               const std::string &prefix,
+               bool alignEllipse);
+
+
+
+  //Fit two bars to an ultrasound image based in the given image region
+  // A) Prepare moving Image
+  // B) Prepare fixed image
+  // C) Similarity registration
+  //
+  //For a detailed descritpion and overview of the whole pipleine
+  //see the top of this file
+  bool FitNerve( ImageType::Pointer inputImage, 
+                 ImageType::RegionType &nerveRegion,
+                 const std::string &prefix, bool alignNerve);
+
 
 
    Eye GetEye(){
      return eye;
    };
 
-   Stem GetStem(){
-     return stem;
+   Nerve GetNerve(){
+     return nerve;
    };
 
-   RGBImageType::Pointer GetOverlay(){
+   RGBImageType::Pointer GetOverlay( ImageType::Pointer origImage, bool nerveOnly = false ){////
+  
+  ImageType::Pointer image = ITKFilterFunctions<ImageType>::Rescale(origImage, 0, 255);
+  typedef itk::CastImageFilter< ImageType, RGBImageType> RGBCastFilter;
+  RGBCastFilter::Pointer rgbConvert = RGBCastFilter::New();
+  rgbConvert->SetInput( image );
+  rgbConvert->Update();
+  RGBImageType::Pointer overlayImage = rgbConvert->GetOutput(); 
+
+
+  if( !nerveOnly ){
+  itk::ImageRegionIterator<RGBImageType> overlayIterator2( overlayImage, 
+                                             overlayImage->GetLargestPossibleRegion());
+  itk::ImageRegionIterator<ImageType> eyeIterator( eye.aligned, 
+                                             eye.aligned->GetLargestPossibleRegion() );
+
+  double alpha = 0.15;
+  while( !overlayIterator2.IsAtEnd() ){
+    RGBImageType::PixelType pixel = overlayIterator2.Get();
+    double p = eyeIterator.Get();
+    if(p > 25){
+      pixel[0] = (1-alpha) * pixel[0];
+      pixel[1] = (1-alpha) * pixel[1];
+      pixel[2] = alpha * 255 + (1-alpha) * pixel[2];
+    }
+    overlayIterator2.Set( pixel ); 
+
+    ++eyeIterator; 
+    ++overlayIterator2;
+  }
+}
+  itk::ImageRegionIterator<RGBImageType> overlayIterator( overlayImage, 
+                                          nerve.originalImageRegion);
+  itk::ImageRegionIterator<ImageType> nerveIterator( nerve.aligned, 
+                                          nerve.aligned->GetLargestPossibleRegion() );
+  double alpha = 0.3;
+  while( !overlayIterator.IsAtEnd() ){
+    RGBImageType::PixelType pixel = overlayIterator.Get();
+    double p = nerveIterator.Get(); 
+    if(p > 5){
+      pixel[0] = alpha * 255 + (1-alpha) * pixel[0];
+      pixel[1] = (1-alpha) * pixel[1];
+      pixel[2] = (1-alpha) * pixel[2];
+    }
+    overlayIterator.Set( pixel ); 
+    
+    ++nerveIterator; 
+    ++overlayIterator;
+  }
+
+ 
+
+
+
       return overlayImage;
    };
 
@@ -310,19 +396,16 @@ private:
   itk::TimeProbe clockEyeC3;
 
 
-  itk::TimeProbe clockStemA;
-  itk::TimeProbe clockStemB;
-  itk::TimeProbe clockStemC1;
-  itk::TimeProbe clockStemC2;
-  itk::TimeProbe clockStemC3;
+  itk::TimeProbe clockNerveA;
+  itk::TimeProbe clockNerveB;
+  itk::TimeProbe clockNerveC1;
+  itk::TimeProbe clockNerveC2;
+  itk::TimeProbe clockNerveC3;
 #endif
 
   Eye eye;
-  Stem stem;
-  RGBImageType::Pointer overlayImage;
+  Nerve nerve;
 
-  //Helper function
-  std::string catStrings(std::string s1, std::string s2);
 
 
   //Create ellipse image
@@ -335,32 +418,6 @@ private:
                                          double outside = 100,
                                          double inside = 0
                                        );
-
-
-  //Fit an ellipse to an eye ultrasound image in three main steps
-  // A) Prepare moving Image
-  // B) Prepare fixed image
-  // C) Affine registration
-  //
-  //For a detailed descritpion and overview of the whole pipleine
-  //see the top of this file
-  bool FitEye( ImageType::Pointer inputImage, const std::string &prefix,
-               bool alignEllipse);
-
-
-
-
-
-  //Fit two bars to an ultrasound image based on eye location and size
-  // A) Prepare moving Image
-  // B) Prepare fixed image
-  // C) Similarity registration
-  //
-  //For a detailed descritpion and overview of the whole pipleine
-  //see the top of this file
-  bool FitStem( ImageType::Pointer inputImage, Eye &eye,
-                const std::string &prefix, bool alignStem);
-
 
 
 

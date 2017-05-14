@@ -56,11 +56,15 @@ OpticNerveUI::OpticNerveUI(int numberOfThreads, int bufferSize, QWidget *parent)
                  SIGNAL(clicked()), this, SLOT(ConnectProbe()));
 	connect( ui->pushButton_Estimation, 
                  SIGNAL(clicked()), this, SLOT(ToggleEstimation()));
-	connect( ui->dropDown_Depth, 
+	connect( ui->spinBox_Depth, 
                  SIGNAL(valueChanged(int)), this, SLOT(SetDepth()));
-	connect( ui->comboBox_Frequency, 
+	connect( ui->dropDown_Frequency, 
                  SIGNAL(currentIndexChanged(int)), this, SLOT(SetFrequency()));
-      
+        connect( ui->spinBox_NerveTop, SIGNAL( valueChanged(int) ), this,
+                 SLOT( SetNerveTop() ) ); 
+        connect( ui->spinBox_NerveDepth, SIGNAL( valueChanged(int) ), this,
+                 SLOT( SetNerveDepth() ) ); 
+        
         intersonDevice.SetRingBufferSize( bufferSize );
 
         opticNerveCalculator.SetNumberOfThreads( numberOfThreads ); 
@@ -93,12 +97,12 @@ void OpticNerveUI::ConnectProbe(){
   }
   
   IntersonArrayDevice::FrequenciesType fs = intersonDevice.GetFrequencies();
-  ui->comboBox_Frequency->clear();
+  ui->dropDown_Frequency->clear();
   for(int i=0; i<fs.size(); i++){
      std::ostringstream ftext;   
      ftext << std::setprecision(1) << std::setw(3) << std::fixed;
      ftext << fs[i] << " hz";
-     ui->comboBox_Frequency->addItem( ftext.str().c_str() );
+     ui->dropDown_Frequency->addItem( ftext.str().c_str() );
   }
 
   if ( !intersonDevice.Start() ){
@@ -186,7 +190,7 @@ void OpticNerveUI::UpdateImage(){
      ui->label_OpticNerveImage->setSizePolicy( QSizePolicy::Ignored, QSizePolicy::Ignored );
   }
 
-  float mm = intersonDevice.GetMMPerPixel();
+  float mm = intersonDevice.GetMmPerPixel();
   //display the estimates
   std::ostringstream cestimate;   
   cestimate << std::setprecision(1) << std::setw(3) << std::fixed;
@@ -209,13 +213,13 @@ void OpticNerveUI::UpdateImage(){
 
 void OpticNerveUI::SetFrequency(){
   this->intersonDevice.SetFrequency( 
-                     this->ui->comboBox_Frequency->currentIndex() + 1 ); 
+                     this->ui->dropDown_Frequency->currentIndex() + 1 ); 
 }
 
 void OpticNerveUI::SetDepth(){
   int depth = this->intersonDevice.SetDepth( 
-                                this->ui->dropDown_Depth->value() );
-  this->ui->dropDown_Depth->setValue(depth);
+                                this->ui->spinBox_Depth->value() );
+  this->ui->spinBox_Depth->setValue(depth);
 }
 
 void OpticNerveUI::ToggleEstimation(){
@@ -227,4 +231,14 @@ void OpticNerveUI::ToggleEstimation(){
     opticNerveCalculator.StartProcessing( &intersonDevice );
     ui->pushButton_Estimation->setText( "Stop Estimation" );
   }
+}
+
+void OpticNerveUI::SetNerveTop(){
+  this->opticNerveCalculator.SetDepth( 
+                                this->ui->spinBox_NerveTop->value() );
+}
+
+void OpticNerveUI::SetNerveDepth(){
+  this->opticNerveCalculator.SetHeight( 
+                                this->ui->spinBox_NerveDepth->value() );
 }
