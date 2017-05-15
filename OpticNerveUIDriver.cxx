@@ -39,8 +39,8 @@ int main(int argc,char *argv[])
   qDebug() << "Starting ...";
   QApplication app(argc,argv);
  
-  int nThreads = 1; 
-  int ringBufferSize = 50;
+  int nThreads = 4; 
+  int ringBufferSize = 20;
   OpticNerveUI window( nThreads, ringBufferSize, nullptr);
   window.show();
 

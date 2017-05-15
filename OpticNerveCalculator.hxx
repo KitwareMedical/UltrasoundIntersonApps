@@ -1,9 +1,9 @@
 #ifndef OPTICNERVECALCULATOR_H
 #define OPTICNERVECALCULATOR_H
 
-#define DEBUG_PRINT
+//#define DEBUG_PRINT
 
-
+#include <cmath>
 #include <Windows.h>
 
 #include <QLabel.h>
@@ -29,7 +29,7 @@ public:
     mean = 0;
     nerveOnly = false;
     depth = 80;
-    height = 20;
+    height = 100;
   };
  
   ~OpticNerveCalculator(){
@@ -127,12 +127,15 @@ public:
      OpticNerveEstimator one;
      //change algorithm defaults
      //TODO: do it more centralized
-     //one.algParams.eyeInitialBlurFactor = 3;
-     one.algParams.eyeVerticalBorderFactor = 1/20.0;      
-     //one.algParams.eyeRingFactor = 1.3;
-     one.algParams.eyeInitialBinaryThreshold = 45;
+     one.algParams.eyeInitialBlurFactor = 3;
+     //one.algParams.eyeVerticalBorderFactor = 1/10.0;      
+     //one.algParams.eyeHorizontalBorderFactor = 1/30.0;      
+     one.algParams.eyeRingFactor = 1.4;
+     one.algParams.eyeInitialBinaryThreshold = 40;
      //one.algParams.eyeMaskCornerXFactor = 0.9;
      //one.algParams.eyeMaskCornerYFactor = 0.1;
+     one.algParams.nerveYOffsetFactor = 0.15;
+     one.algParams.nerveYRegionFactor = 1.0;
 
      typedef itk::CastImageFilter< IntersonArrayDevice::ImageType, OpticNerveEstimator::ImageType> Caster;
      Caster::Pointer caster = Caster::New();
@@ -154,17 +157,19 @@ public:
 
           OpticNerveEstimator::ImageType::IndexType desiredStart;
           desiredStart[0] = 0;
-          desiredStart[1] = std::max(0, std::min(depth, (int) imageSize[1] - height) );
+          //desiredStart[1] = std::max(0, std::min(depth, (int) (imageSize[1] - height) ) );
+          desiredStart[1] =imageSize[1] - height;
 
           OpticNerveEstimator::ImageType::SizeType desiredSize;
           desiredSize[0] = imageSize[0];
-          desiredSize[1] = std::min(height, (int) imageSize[1]);
+          //desiredSize[1] = std::min( height, (int) ( imageSize[1] - desiredStart[1]) );
+          desiredSize[1] =  height;
 
           OpticNerveEstimator::ImageType::RegionType desiredRegion(desiredStart, desiredSize);
 
           bool fitNerve = one.FitNerve( castImage, desiredRegion, true, "debug" );
           if(fitNerve){
-            status =  OpticNerveEstimator::ESTIMATION_SUCCESS;
+            status = OpticNerveEstimator::ESTIMATION_SUCCESS;
           }
           else{
             status = OpticNerveEstimator::ESTIMATION_FAIL_NERVE;
@@ -188,8 +193,14 @@ public:
        return !stopThreads;
      }
     
+#ifdef DEBUG_PRINT
+     std::cout << "Getting overlay image" << index << std::endl;
+#endif
      typedef OpticNerveEstimator::RGBImageType RGBImageType;
-     RGBImageType::Pointer overlay = one.GetOverlay(castImage, doNerveOnly);
+     RGBImageType::Pointer overlay = one.GetOverlay( castImage, doNerveOnly );
+#ifdef DEBUG_PRINT
+     std::cout << "Getting overlay image done" << index << std::endl;
+#endif
 
     
      DWORD waitForMutex = WaitForSingleObject(toProcessMutex, INFINITE); 

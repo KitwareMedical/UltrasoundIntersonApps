@@ -44,7 +44,7 @@ void OpticNerveUI::closeEvent (QCloseEvent *event){
 OpticNerveUI::OpticNerveUI(int numberOfThreads, int bufferSize, QWidget *parent) 
 	: QMainWindow(parent), ui(new Ui::MainWindow), 
           lastRendered(-1), lastOverlayRendered(-1),
-          mmPerPixel(1)
+          mmPerPixel(1), previousNumberOfEstimates(0)
 {
 
 	//Setup the graphical layout on this current Widget
@@ -65,13 +65,20 @@ OpticNerveUI::OpticNerveUI(int numberOfThreads, int bufferSize, QWidget *parent)
                  SLOT( SetNerveTop() ) ); 
         connect( ui->spinBox_NerveDepth, SIGNAL( valueChanged(int) ), this,
                  SLOT( SetNerveDepth() ) ); 
-        
+        connect( ui->checkBox_NerveOnly, SIGNAL( stateChanged(int) ), this,
+                 SLOT( SetNerveOnly() ) ); 
+
+
         intersonDevice.SetRingBufferSize( bufferSize );
 
         opticNerveCalculator.SetNumberOfThreads( numberOfThreads ); 
  
                
 
+        this->processing =  new QTimer(this);
+        this->processing->setSingleShot(false);
+        this->processing->setInterval( 1000 );
+        this->connect( processing, SIGNAL(timeout()), SLOT( UpdateEstimateFrameRate() ) );
 	// Timer
 	this->timer = new QTimer(this);
 	this->timer->setSingleShot(true);
@@ -190,7 +197,10 @@ void OpticNerveUI::UpdateImage(){
      ui->label_OpticNerveImage->setPixmap(QPixmap::fromImage(qimage));
      ui->label_OpticNerveImage->setScaledContents( true );
      ui->label_OpticNerveImage->setSizePolicy( QSizePolicy::Ignored, QSizePolicy::Ignored );
-  }
+#ifdef DEBUG_PRINT
+     std::cout << "Display overlay image done" << std::endl;
+#endif
+   }
 
 
   //display the estimates
@@ -211,7 +221,14 @@ void OpticNerveUI::UpdateImage(){
   this->timer->start();
 }
 
-
+void OpticNerveUI::UpdateEstimateFrameRate(){
+    int currentN = opticNerveCalculator.GetNumberOfEstimates();
+    std::ostringstream processingRate;   
+    processingRate << std::setprecision(1) << std::setw(3) << std::fixed;
+    processingRate << (currentN - previousNumberOfEstimates) << " frames / sec";
+    std::cout << processingRate.str() << std::endl;
+    previousNumberOfEstimates = currentN;
+};
 
 void OpticNerveUI::SetFrequency(){
   this->intersonDevice.SetFrequency( 
@@ -232,6 +249,8 @@ void OpticNerveUI::ToggleEstimation(){
   else{
     opticNerveCalculator.StartProcessing( &intersonDevice );
     ui->pushButton_Estimation->setText( "Stop Estimation" );
+    previousNumberOfEstimates = 0;
+    this->processing->start();
   }
 }
 
@@ -243,4 +262,8 @@ void OpticNerveUI::SetNerveTop(){
 void OpticNerveUI::SetNerveDepth(){
   this->opticNerveCalculator.SetHeight( 
                                 this->ui->spinBox_NerveDepth->value() );
+}
+
+void OpticNerveUI::SetNerveOnly(){
+  this->opticNerveCalculator.SetNerveOnly( this->ui->checkBox_NerveOnly->isChecked() );
 }

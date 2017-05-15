@@ -252,7 +252,7 @@ OpticNerveEstimator::FitEye( OpticNerveEstimator::ImageType::Pointer inputImage,
 
 
   ITKFilterFunctions<UnsignedCharImageType>::AddVerticalBorder( sdImage,
-           algParams.eyeVerticalBorderFactor * imageSize[1] );
+           algParams.eyeVerticalBorderFactor * imageSize[0] );
 
   SignedDistanceFilter::Pointer signedDistanceFilter = SignedDistanceFilter::New();
   signedDistanceFilter->SetInput( sdImage );
@@ -331,6 +331,7 @@ OpticNerveEstimator::FitEye( OpticNerveEstimator::ImageType::Pointer inputImage,
 
   eye.initialRadiusY = imageCalculatorY->GetMaximum() ;
 
+  eye.initialCenterIndex[1] = imageCalculatorY->GetIndexOfMaximum()[1];
 #ifdef DEBUG_PRINT
   std::cout << "Eye initial radiusY: "<< eye.initialRadiusY << std::endl;
 #endif
@@ -367,10 +368,15 @@ OpticNerveEstimator::FitEye( OpticNerveEstimator::ImageType::Pointer inputImage,
 
   eye.initialRadiusX = imageCalculatorX->GetMaximum() ;
 
+  eye.initialCenterIndex[0] = imageCalculatorX->GetIndexOfMaximum()[0];
 #ifdef DEBUG_PRINT
   std::cout << "Eye initial radiusX: "<< eye.initialRadiusX << std::endl;
 #endif
 
+  image->TransformIndexToPhysicalPoint(eye.initialCenterIndex, eye.initialCenter);
+#ifdef DEBUG_PRINT
+  std::cout << "Eye inital center index: " << eye.initialCenterIndex << std::endl;
+#endif
   //--Step 5
   //  Gaussian smoothing, threshold and rescale
 
@@ -407,7 +413,7 @@ OpticNerveEstimator::FitEye( OpticNerveEstimator::ImageType::Pointer inputImage,
 
   double outside = 100;
   //intial guess of radiusY axis
-  double r1 =  eye.initialRadiusX ;
+  double r1 =  std::min( 1.4 * eye.initialRadiusY, eye.initialRadiusX) ;
   //inital guess of radiusX axis
   double r2 = eye.initialRadiusY;
   //width of the ellipse ring rf*r1, rf*r2
@@ -456,26 +462,31 @@ OpticNerveEstimator::FitEye( OpticNerveEstimator::ImageType::Pointer inputImage,
   //   macthing the create ellipse image, but not including left and right corners
   //   of the eye (they are often black but sometimes white)
 
-  ImageType::Pointer ellipseMask = CreateEllipseImage( imageSpacing, imageSize, imageOrigin, imageDirection,
+  ImageType::Pointer ellipseMask = CreateEllipseImage( imageSpacing, imageSize,
+                                                       imageOrigin, imageDirection,
 		                                       eye.initialCenter,
                                                        r1 * ( algParams.eyeRingFactor + 1 ) / 2,
                                                        r2 * ( algParams.eyeRingFactor + 1 ) / 2,
                                                        0, 100 );
   //remove left and right corners from mask
-  for(int i=0; i<eye.initialCenterIndex[0] - algParams.eyeMaskCornerXFactor * r1; i++){
+  int xlim_l = std::max(0, (int) (eye.initialCenterIndex[0] - algParams.eyeMaskCornerXFactor * r1) );
+  int xlim_r = std::min( (int) imageSize[0], (int)( eye.initialCenterIndex[0] + algParams.eyeMaskCornerXFactor * r1 ) );
+
+  int ylim_t = std::max(0, (int) (eye.initialCenterIndex[1] - algParams.eyeMaskCornerYFactor * r2) );
+  int ylim_b = std::min( (int) imageSize[1], (int)( eye.initialCenterIndex[1] + algParams.eyeMaskCornerYFactor * r2) );
+
+  for(int i=0; i<xlim_l; i++){
     ImageType::IndexType index;
     index[0] = i;
-    for(int j = eye.initialCenterIndex[1] - algParams.eyeMaskCornerYFactor * r2;
-            j < eye.initialCenterIndex[1] + algParams.eyeMaskCornerYFactor * r2; j++){
+    for(int j = ylim_b; j < ylim_t; j++){
       index[1]=j;
       ellipseMask->SetPixel(index, 0);
     }
   }
-  for(int i=eye.initialCenterIndex[0] + algParams.eyeMaskCornerXFactor * r1; i < imageSize[0]; i++){
+  for(int i=xlim_r; i < imageSize[0]; i++){
     ImageType::IndexType index;
     index[0] = i;
-    for(int j = eye.initialCenterIndex[1] - algParams.eyeMaskCornerYFactor * r2;
-            j < eye.initialCenterIndex[1] + algParams.eyeMaskCornerYFactor * r2; j++){
+    for(int j = ylim_b; j < ylim_t; j++){
       index[1]=j;
       ellipseMask->SetPixel(index, 0);
     }
@@ -488,10 +499,6 @@ OpticNerveEstimator::FitEye( OpticNerveEstimator::ImageType::Pointer inputImage,
 
 #ifdef REPORT_TIMES
   clockEyeC2.Start();
-#endif
-
-#ifdef DEBUG_PRINT
-  std::cout << "Setting up registration" << std::endl; 
 #endif
 
   //-- Step 2
@@ -514,7 +521,8 @@ OpticNerveEstimator::FitEye( OpticNerveEstimator::ImageType::Pointer inputImage,
 #ifdef DEBUG_PRINT
   optimizer->TraceOn();
 #endif
-  optimizer->SetMaximumNumberOfFunctionEvaluations( 2000 );
+  optimizer->SetMaximumNumberOfFunctionEvaluations( 20000 );
+
 
 
   metric->SetMovingInterpolator( movingInterpolator );
@@ -527,7 +535,6 @@ OpticNerveEstimator::FitEye( OpticNerveEstimator::ImageType::Pointer inputImage,
   MaskType::Pointer  spatialObjectMask = MaskType::New();
   spatialObjectMask->SetImage( castFilter3->GetOutput() );
   metric->SetFixedImageMask( spatialObjectMask );
-
 
 #ifdef DEBUG_IMAGES
   ImageIO<ImageType>::WriteImage( ellipseMask, catStrings(prefix, "-eye-mask.tif")  );
@@ -544,7 +551,7 @@ OpticNerveEstimator::FitEye( OpticNerveEstimator::ImageType::Pointer inputImage,
   RegistrationType::ShrinkFactorsArrayType shrinkFactorsPerLevel;
   shrinkFactorsPerLevel.SetSize( 1 );
   shrinkFactorsPerLevel[0] = std::max(1,
-      (int) ( std::min( imageSize[0], imageSize[1]) / algParams.eyeRegistrationSize ) );
+      (int) ( std::min( imageSize[0], imageSize[1]) /algParams.eyeRegistrationSize ) );
   //shrinkFactorsPerLevel[1] = 4;
   //shrinkFactorsPerLevel[2] = 2;
   //shrinkFactorsPerLevel[3] = 1;
@@ -560,9 +567,7 @@ OpticNerveEstimator::FitEye( OpticNerveEstimator::ImageType::Pointer inputImage,
   registration->SetNumberOfLevels ( 1 );
   registration->SetSmoothingSigmasPerLevel( smoothingSigmasPerLevel );
   registration->SetShrinkFactorsPerLevel( shrinkFactorsPerLevel );
-#ifdef DEBUG_PRINT
-  std::cout << "Starting registration" << std::endl; 
-#endif
+
   //Do registration
   try{
 	  registration->SetNumberOfThreads(1);
@@ -788,7 +793,7 @@ OpticNerveEstimator::OpticNerveEstimator::FitNerve(
 #ifdef DEBUG_IMAGES
   ImageIO<ImageType>::WriteImage( nerveImageB, catStrings(prefix, "-nerve-sd-thres.tif") );
 #endif
-/*
+
   StructuringElementType structuringElement;
   structuringElement.SetRadius( std::min(imageSize[0], imageSize[1]) * algParams.nerveOpeningRadiusFactor  );
   structuringElement.CreateStructuringElement();
@@ -798,7 +803,6 @@ OpticNerveEstimator::OpticNerveEstimator::FitNerve(
   openingFilter->SetForegroundValue(100.0);
   openingFilter->Update();
   nerveImageB = openingFilter->GetOutput();
-*/
 
 #ifdef DEBUG_IMAGES
   ImageIO<ImageType>::WriteImage( nerveImageB, catStrings(prefix, "-nerve-morpho.tif") );
@@ -1110,15 +1114,6 @@ OpticNerveEstimator::OpticNerveEstimator::FitNerve(
   optimizer->SetMaximumNumberOfFunctionEvaluations( 20000 );
 
 
-  //Using a Quasi-Newton method, make sure scales are set to identity to
-  //not destory the approximation of the Hessian
-  std::cout << transform->GetNumberOfParameters() << std::endl;
-  OptimizerType::ScalesType scales( transform->GetNumberOfParameters() );
-  scales[0] = 1.0;
-  scales[1] = 1.0;
-  scales[2] = 1.0;
-  scales[3] = 1.0;
-  optimizer->SetScales( scales );
 
 
   metric->SetMovingInterpolator( movingInterpolator );

@@ -109,7 +109,7 @@ limitations under the License.
 //#define DEBUG_IMAGES
 
 //If DEBUG_PRINT is defined print out intermediate messages
-#define DEBUG_PRINT
+//#define DEBUG_PRINT
 
 //If REPORT_TIMES is defined perform time measurments of individual steps
 //and report them
@@ -228,10 +228,10 @@ public:
      double nerveYSizeFactor =  1.2;
      double nerveYOffsetFactor =  0.2;
      double nerveInitialSmoothXFactor = 4;
-     double nerveInitialSmoothYFactor = 20;
+     double nerveInitialSmoothYFactor = 30;
      int    nerveInitialThreshold = 75;
-     double nerveOpeningRadiusFactor = 1/60.0;
-     double nerveVerticalBorderFactor = 1/5.0;
+     double nerveOpeningRadiusFactor = 1/70.0;
+     double nerveVerticalBorderFactor = 1/10.0;
      int    nerveHorizontalBoder = 2;
      int    nerveRegistrationThreshold = 65;
      double nerveRefineVerticalBorderFactor = 1/20.0;
@@ -327,68 +327,70 @@ public:
    };
 
    Nerve GetNerve(){
-     return nerve;
+           return nerve;
    };
+
 
    RGBImageType::Pointer GetOverlay( ImageType::Pointer origImage, bool nerveOnly = false ){////
 
-  ImageType::Pointer image = ITKFilterFunctions<ImageType>::Rescale(origImage, 0, 255);
-  typedef itk::CastImageFilter< ImageType, RGBImageType> RGBCastFilter;
-  RGBCastFilter::Pointer rgbConvert = RGBCastFilter::New();
-  rgbConvert->SetInput( image );
-  rgbConvert->Update();
-  RGBImageType::Pointer overlayImage = rgbConvert->GetOutput();
+     ImageType::Pointer image = ITKFilterFunctions<ImageType>::Rescale(origImage, 0, 255);
+     typedef itk::CastImageFilter< ImageType, RGBImageType> RGBCastFilter;
+     RGBCastFilter::Pointer rgbConvert = RGBCastFilter::New();
+     rgbConvert->SetInput( image );
+     rgbConvert->Update();
+     RGBImageType::Pointer overlayImage = rgbConvert->GetOutput();
 
 
-  if( !nerveOnly ){
-  itk::ImageRegionIterator<RGBImageType> overlayIterator2( overlayImage,
-                                             overlayImage->GetLargestPossibleRegion());
-  itk::ImageRegionIterator<ImageType> eyeIterator( eye.aligned,
-                                             eye.aligned->GetLargestPossibleRegion() );
+     if( !nerveOnly ){
+       itk::ImageRegionIterator<RGBImageType> overlayIterator2( overlayImage,
+                                   overlayImage->GetLargestPossibleRegion());
+       itk::ImageRegionIterator<ImageType> eyeIterator( eye.aligned,
+                                   eye.aligned->GetLargestPossibleRegion() );
 
-  double alpha = 0.15;
-  while( !overlayIterator2.IsAtEnd() ){
-    RGBImageType::PixelType pixel = overlayIterator2.Get();
-    double p = eyeIterator.Get();
-    if(p > 25){
-      pixel[0] = (1-alpha) * pixel[0];
-      pixel[1] = (1-alpha) * pixel[1];
-      pixel[2] = alpha * 255 + (1-alpha) * pixel[2];
-    }
-    overlayIterator2.Set( pixel );
+       double alpha = 0.15;
+       while( !overlayIterator2.IsAtEnd() ){
+         RGBImageType::PixelType pixel = overlayIterator2.Get();
+         double p = eyeIterator.Get();
+         if(p > 25){
+           pixel[0] = (1-alpha) * pixel[0];
+           pixel[1] = (1-alpha) * pixel[1];
+           pixel[2] = alpha * 255 + (1-alpha) * pixel[2];
+         }
+         overlayIterator2.Set( pixel );
 
-    ++eyeIterator;
-    ++overlayIterator2;
-  }
-}
-  itk::ImageRegionIterator<RGBImageType> overlayIterator( overlayImage,
-                                          nerve.originalImageRegion);
-  itk::ImageRegionIterator<ImageType> nerveIterator( nerve.aligned,
-                                          nerve.aligned->GetLargestPossibleRegion() );
-  double alpha = 0.3;
-  while( !overlayIterator.IsAtEnd() ){
-    RGBImageType::PixelType pixel = overlayIterator.Get();
-    double p = nerveIterator.Get();
-    if(p > 5){
-      pixel[0] = alpha * 255 + (1-alpha) * pixel[0];
-      pixel[1] = (1-alpha) * pixel[1];
-      pixel[2] = (1-alpha) * pixel[2];
-    }
-    overlayIterator.Set( pixel );
-
-    ++nerveIterator;
-    ++overlayIterator;
-  }
+         ++eyeIterator;
+         ++overlayIterator2;
+       }
+     }
 
 
+     itk::ImageRegionIterator<RGBImageType> overlayIterator( overlayImage,
+                     nerve.originalImageRegion);
+     itk::ImageRegionIterator<ImageType> nerveIterator( nerve.aligned,
+                     nerve.aligned->GetLargestPossibleRegion() );
+     double alpha = 0.3;
+     while( !overlayIterator.IsAtEnd() ){
+       RGBImageType::PixelType pixel = overlayIterator.Get();
+       double p = nerveIterator.Get();
+       if(p > 5){
+         pixel[0] = alpha * 255 + (1-alpha) * pixel[0];
+         pixel[1] = (1-alpha) * pixel[1];
+         pixel[2] = (1-alpha) * pixel[2];
+       }
+       overlayIterator.Set( pixel );
 
+       ++nerveIterator;
+       ++overlayIterator;
+     }
 
-
-      return overlayImage;
+     return overlayImage;
    };
 
 
+
+
 private:
+
 #ifdef REPORT_TIMES
   itk::TimeProbe clockEyeA;
   itk::TimeProbe clockEyeB;

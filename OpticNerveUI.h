@@ -21,17 +21,19 @@ limitations under the License.
 
 =========================================================================*/
 
-// Print debug statements
-// Using print because I am to inept to setup visual studio
-#define DEBUG_PRINT
 
 #pragma once
 
 #ifndef OPTICNERVEUI_H 
 #define OPTICNERVEUI_H
 
+// Print debug statements
+// Using print because I am to inept to setup visual studio
+//#define DEBUG_PRINT
+
 #include <QMainWindow>
 #include <QTimer>
+#include <QTime>
 #include <QCheckBox>
 #include <qgroupbox.h>
 #include <QCloseEvent>
@@ -67,21 +69,28 @@ protected slots:
   
   void SetNerveDepth();
   void SetNerveTop();
+  void SetNerveOnly();
 
   void ToggleEstimation();
 
   /** Update the images displayed from the probe */
   void UpdateImage();
 
-  
+ 
+  void UpdateEstimateFrameRate();
+ 
 private:
   /** Layout for the Window */
   Ui::MainWindow *ui;
   QTimer *timer;
   
+  QTimer *processing;
+  
   OpticNerveCalculator opticNerveCalculator;
   IntersonArrayDevice intersonDevice;
   float mmPerPixel;
+ 
+  int previousNumberOfEstimates;
 
   int lastRendered;
   int lastOverlayRendered;
