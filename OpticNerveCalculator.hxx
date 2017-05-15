@@ -139,6 +139,7 @@ public:
      caster->SetInput( image );
      caster->Update();
      OpticNerveEstimator::ImageType::Pointer castImage = caster->GetOutput();
+
 #ifdef DEBUG_PRINT
      std::cout << "Doing estimation on image" << index << std::endl;
 #endif
@@ -161,7 +162,7 @@ public:
 
           OpticNerveEstimator::ImageType::RegionType desiredRegion(desiredStart, desiredSize);
 
-          bool fitNerve = one.FitNerve( castImage, desiredRegion, "debug", true );
+          bool fitNerve = one.FitNerve( castImage, desiredRegion, true, "debug" );
           if(fitNerve){
             status =  OpticNerveEstimator::ESTIMATION_SUCCESS;
           }
@@ -182,7 +183,7 @@ public:
     
      if( status != OpticNerveEstimator::ESTIMATION_SUCCESS ){
 #ifdef DEBUG_PRINT
-       std::cout << "Estimation failed" << index << std::endl;
+       std::cout << "Estimation failed " << index << std::endl;
 #endif
        return !stopThreads;
      }

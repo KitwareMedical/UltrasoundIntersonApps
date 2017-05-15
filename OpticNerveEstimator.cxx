@@ -25,7 +25,7 @@ OpticNerveEstimator::Fit( OpticNerveEstimator::ImageType::Pointer origImage,
                           bool overlay,
                           std::string prefix){
 
-  bool fitEyeSucces = FitEye( origImage, prefix, overlay);
+  bool fitEyeSucces = FitEye( origImage, overlay, prefix);
   if(!fitEyeSucces){
     return ESTIMATION_FAIL_EYE;
   }
@@ -35,12 +35,12 @@ OpticNerveEstimator::Fit( OpticNerveEstimator::ImageType::Pointer origImage,
   ImageType::SizeType imageSize = imageRegion.GetSize();
 
   ImageType::IndexType desiredStart;
-  desiredStart[0] = eye.center[0] - algParams.nerveXRegionFactor * eye.radiusY;
-  desiredStart[1] = eye.center[1] + algParams.nerveYRegionFactor * eye.radiusX ;
+  desiredStart[0] = eye.center[0] - algParams.nerveXRegionFactor * eye.radiusX;
+  desiredStart[1] = eye.center[1] + algParams.nerveYRegionFactor * eye.radiusY ;
 
   ImageType::SizeType desiredSize;
-  desiredSize[0] = 2 * algParams.nerveXRegionFactor * eye.radiusY;
-  desiredSize[1] =     algParams.nerveYSizeFactor * eye.radiusX;
+  desiredSize[0] = 2 * algParams.nerveXRegionFactor * eye.radiusX;
+  desiredSize[1] =     algParams.nerveYSizeFactor * eye.radiusY;
 
   if(desiredStart[1] > imageSize[1] ){
     return ESTIMATION_FAIL_NERVE;
@@ -59,7 +59,7 @@ OpticNerveEstimator::Fit( OpticNerveEstimator::ImageType::Pointer origImage,
 
   ImageType::RegionType desiredRegion(desiredStart, desiredSize);
 
-  bool fitNerveSucces = FitNerve( origImage, desiredRegion, prefix, overlay);
+  bool fitNerveSucces = FitNerve( origImage, desiredRegion, overlay, prefix);
   if(!fitNerveSucces){
     return ESTIMATION_FAIL_NERVE;
   }
@@ -173,15 +173,12 @@ OpticNerveEstimator::CreateEllipseImage( ImageType::SpacingType spacing,
 //see the top of this file
 bool
 OpticNerveEstimator::FitEye( OpticNerveEstimator::ImageType::Pointer inputImage,
-                             const std::string &prefix, bool alignEllipse){
+                bool alignEllipse, const std::string &prefix){
 
 #ifdef DEBUG_PRINT
   std::cout << "--- Fitting Eye ---" << std::endl << std::endl;
 #endif
 
-#ifdef DEBUG_IMAGES
-  ImageIO<ImageType>::WriteImage(inputImage, catStrings(prefix, "-eye-input.tif") );
-#endif
 
   ////
   //A. Prepare fixed image
@@ -198,6 +195,9 @@ OpticNerveEstimator::FitEye( OpticNerveEstimator::ImageType::Pointer inputImage,
 
   ImageType::Pointer image = ITKFilterFunctions<ImageType>::Rescale(inputImage, 0, 100);
 
+#ifdef DEBUG_IMAGES
+  ImageIO<ImageType>::WriteImage(image, catStrings(prefix, "-eye-input.tif") );
+#endif
   ImageType::SpacingType imageSpacing = image->GetSpacing();
   ImageType::RegionType imageRegion = image->GetLargestPossibleRegion();
   ImageType::SizeType imageSize = imageRegion.GetSize();
@@ -407,7 +407,7 @@ OpticNerveEstimator::FitEye( OpticNerveEstimator::ImageType::Pointer inputImage,
 
   double outside = 100;
   //intial guess of radiusY axis
-  double r1 = eye.initialRadiusX;
+  double r1 =  eye.initialRadiusX ;
   //inital guess of radiusX axis
   double r2 = eye.initialRadiusY;
   //width of the ellipse ring rf*r1, rf*r2
@@ -490,6 +490,10 @@ OpticNerveEstimator::FitEye( OpticNerveEstimator::ImageType::Pointer inputImage,
   clockEyeC2.Start();
 #endif
 
+#ifdef DEBUG_PRINT
+  std::cout << "Setting up registration" << std::endl; 
+#endif
+
   //-- Step 2
   //   Affine registration centered on the fixed ellipse image
 
@@ -504,24 +508,14 @@ OpticNerveEstimator::FitEye( OpticNerveEstimator::ImageType::Pointer inputImage,
   RegistrationType::Pointer   registration  = RegistrationType::New();
 
 
-  //optimizer->SetGradientConvergenceTolerance( 0.000001 );
-  //optimizer->SetLineSearchAccuracy( 0.5 );
-  //optimizer->SetDefaultStepLength( 0.00001 );
+  optimizer->SetGradientConvergenceTolerance( 0.000001 );
+  optimizer->SetLineSearchAccuracy( 0.5 );
+  optimizer->SetDefaultStepLength( 0.00001 );
 #ifdef DEBUG_PRINT
-  //optimizer->TraceOn();
+  optimizer->TraceOn();
 #endif
-  //optimizer->SetMaximumNumberOfFunctionEvaluations( 20000 );
+  optimizer->SetMaximumNumberOfFunctionEvaluations( 2000 );
 
-/*
-  OptimizerType::ScalesType scales( transform->GetNumberOfParameters() );
-  scales[0] = 1.0;
-  scales[1] = 1.0;
-  scales[2] = 1.0;
-  scales[3] = 1.0;
-  scales[4] = 1.0;
-  scales[5] = 1.0;
-  optimizer->SetScales( scales );
-*/
 
   metric->SetMovingInterpolator( movingInterpolator );
   metric->SetFixedInterpolator( fixedInterpolator );
@@ -534,6 +528,7 @@ OpticNerveEstimator::FitEye( OpticNerveEstimator::ImageType::Pointer inputImage,
   spatialObjectMask->SetImage( castFilter3->GetOutput() );
   metric->SetFixedImageMask( spatialObjectMask );
 
+
 #ifdef DEBUG_IMAGES
   ImageIO<ImageType>::WriteImage( ellipseMask, catStrings(prefix, "-eye-mask.tif")  );
 #endif
@@ -544,14 +539,12 @@ OpticNerveEstimator::FitEye( OpticNerveEstimator::ImageType::Pointer inputImage,
   registration->SetMovingImage(    imageSmooth    );
   registration->SetFixedImage(   ellipse   );
 
-  std::cout <<  transform->GetParameters()  << std::endl;
-  std::cout <<  transform->GetCenter()  << std::endl;
   registration->SetInitialTransform( transform );
 
   RegistrationType::ShrinkFactorsArrayType shrinkFactorsPerLevel;
   shrinkFactorsPerLevel.SetSize( 1 );
   shrinkFactorsPerLevel[0] = std::max(1,
-      (int) ( std::min( imageSize[0], imageSize[1]) /algParams.eyeRegistrationSize ) );
+      (int) ( std::min( imageSize[0], imageSize[1]) / algParams.eyeRegistrationSize ) );
   //shrinkFactorsPerLevel[1] = 4;
   //shrinkFactorsPerLevel[2] = 2;
   //shrinkFactorsPerLevel[3] = 1;
@@ -567,7 +560,9 @@ OpticNerveEstimator::FitEye( OpticNerveEstimator::ImageType::Pointer inputImage,
   registration->SetNumberOfLevels ( 1 );
   registration->SetSmoothingSigmasPerLevel( smoothingSigmasPerLevel );
   registration->SetShrinkFactorsPerLevel( shrinkFactorsPerLevel );
-
+#ifdef DEBUG_PRINT
+  std::cout << "Starting registration" << std::endl; 
+#endif
   //Do registration
   try{
 	  registration->SetNumberOfThreads(1);
@@ -696,8 +691,9 @@ bool
 OpticNerveEstimator::OpticNerveEstimator::FitNerve(
                 OpticNerveEstimator::ImageType::Pointer inputImage,
                 OpticNerveEstimator::ImageType::RegionType &desiredRegion,
-                const std::string &prefix,
-                bool alignNerve ){
+                bool alignNerve,
+                const std::string &prefix
+                ){
 
 #ifdef DEBUG_PRINT
   std::cout << "--- Fit nerve ---" << std::endl << std::endl;
@@ -1025,7 +1021,7 @@ OpticNerveEstimator::OpticNerveEstimator::FitNerve(
   movingMask->SetSpacing(nerveSpacing);
   movingMask->SetOrigin(nerveOrigin);
 
-  int nerveYStart   = eye.initialRadiusY * (1 - algParams.nerveYRegionFactor);
+  int nerveYStart   = nerveSize[0] * algParams.nerveYOffsetFactor;
   int nerveXStart1  = nerve.initialCenterIndex[0] - 1.5 * nerve.initialWidth / nerveSpacing[0];
   int nerveXEnd1    = nerve.initialCenterIndex[0] - 1 * nerve.initialWidth / nerveSpacing[0];
   int nerveXStart2  = nerve.initialCenterIndex[0] + 1 * nerve.initialWidth / nerveSpacing[0];
@@ -1105,13 +1101,13 @@ OpticNerveEstimator::OpticNerveEstimator::FitNerve(
   InterpolatorType::Pointer   fixedInterpolator  = InterpolatorType::New();
   RegistrationType::Pointer   registration  = RegistrationType::New();
 
-  //optimizer->SetGradientConvergenceTolerance( 0.000001 );
-  //optimizer->SetLineSearchAccuracy( 0.5 );
-  //optimizer->SetDefaultStepLength( 0.00001 );
+  optimizer->SetGradientConvergenceTolerance( 0.000001 );
+  optimizer->SetLineSearchAccuracy( 0.5 );
+  optimizer->SetDefaultStepLength( 0.00001 );
 #ifdef DEBUG_PRINT
-  //optimizer->TraceOn();
+  optimizer->TraceOn();
 #endif
-  //optimizer->SetMaximumNumberOfFunctionEvaluations( 20000 );
+  optimizer->SetMaximumNumberOfFunctionEvaluations( 20000 );
 
 
   //Using a Quasi-Newton method, make sure scales are set to identity to
@@ -1243,22 +1239,37 @@ OpticNerveEstimator::OpticNerveEstimator::FitNerve(
 
   //limit rotation to 45 degress
   double rotation = transform->GetRotation();
-  if( std::fabs( rotation ) > M_PI / 4.0 ){
+  if( std::fabs( rotation ) > M_PI / 3.0  && std::fabs( rotation ) < M_PI * 2.0 / 3.0){
+#ifdef DEBUG_PRINT
+  std::cout << "Estimation failed: Nerve rotated too much " << rotation << std::endl;
+#endif
     return false;
   }
 
   //Check if nerve width falls our of bounds
   SimilarityTransformType::OutputVectorType tW = tXO;
-  tW[0] *= imageSpacing[0]; 
-  tW[1] *= imageSpacing[1]; 
-  if( nerve.centerIndex[0] - tW[0] < nerveIndex[0] || 
-      nerve.centerIndex[0] + tW[0]> nerveIndex[0] + nerveSize[0] ){
-    return ESTIMATION_FAIL_NERVE;
+  tW[0] = std::fabs( tW[0] * imageSpacing[0] );
+  tW[1] = std::fabs( tW[1] * imageSpacing[1] );
+  if( nerve.centerIndex[0] < nerveIndex[0] ||
+      nerve.centerIndex[0] > nerveIndex[0] + nerveSize[0] ){
+#ifdef DEBUG_PRINT
+  std::cout << "Estimation failed: Nerve out of bounds" << std::endl;
+  std::cout << nerve.centerIndex << std::endl;
+  std::cout << tW << std::endl;
+#endif
+    return false;
   }
-  if( nerve.centerIndex[1] - tW[1] < nerveIndex[1] || 
-      nerve.centerIndex[1] + tW[1] > nerveIndex[1] + nerveSize[1] ){
-    return ESTIMATION_FAIL_NERVE;
+/*
+  if( nerve.centerIndex[1] < nerveIndex[1] ||
+      nerve.centerIndex[1] > nerveIndex[1] + nerveSize[1] ){
+#ifdef DEBUG_PRINT
+  std::cout << "Estimation failed: Nerve out of bounds" << std::endl;
+  std::cout << nerve.centerIndex << std::endl;
+  std::cout << tW << std::endl;
+#endif
+    return false;
   }
+*/
 
 #ifdef DEBUG_PRINT
   std::cout << "Nerve center: " << nerve.centerIndex << std::endl;

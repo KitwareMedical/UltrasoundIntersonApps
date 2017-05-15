@@ -77,9 +77,11 @@ protected slots:
 private:
   /** Layout for the Window */
   Ui::MainWindow *ui;
+  QTimer *timer;
+  
   OpticNerveCalculator opticNerveCalculator;
   IntersonArrayDevice intersonDevice;
-  QTimer *timer;
+  float mmPerPixel;
 
   int lastRendered;
   int lastOverlayRendered;
