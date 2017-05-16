@@ -60,11 +60,17 @@ set(CPACK_PACKAGE_VENDOR "Kitware, Inc.")
 set(CPACK_GENERATOR "ZIP")
 
 
-set(CPACK_INSTALL_CMAKE_PROJECTS "${CMAKE_BINARY_DIR};${PROJECT_NAME};ALL;/")
-set(CPACK_INSTALL_CMAKE_PROJECTS "${CPACK_INSTALL_CMAKE_PROJECTS};${IntersonArraySDKCxx_DIR};IntersonArraySDKCxx;Runtime;/")
+set(CPACK_INSTALL_CMAKE_PROJECTS "${IntersonArraySDKCxx_DIR};IntersonArraySDKCxx;Runtime;/")
+set(CPACK_INSTALL_CMAKE_PROJECTS "${CPACK_INSTALL_CMAKE_PROJECTS};${CMAKE_BINARY_DIR};${PROJECT_NAME};ALL;/")
 
-
-
+# Get location of windeployqt.exe based on uic.exe location
+get_target_property(uic_location Qt5::uic IMPORTED_LOCATION)
+get_filename_component(_dir ${uic_location} DIRECTORY)
+set(windeployqt "${_dir}/windeployqt.exe")
+if(NOT EXISTS ${windeployqt})
+  message(FATAL_ERROR "Failed to locate windeployqt executable: [${windeployqt}]")
+endif()
+install(CODE "execute_process(COMMAND \"${windeployqt}\" \"\${CMAKE_INSTALL_PREFIX}/bin/UltrasoundOpticNerveUI.exe\")") 
 
 include(CPack)
 

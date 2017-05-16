@@ -211,30 +211,31 @@ public:
      double eyeInitialBlurFactor = 10;
      double eyeHorizontalBorderFactor = 1/15.0;
      double eyeInitialBinaryThreshold = 25;
-     double eyeInitialLowerThreshold = 25;
+     //double eyeInitialLowerThreshold = 25;
      double eyeClosingRadiusFactor =  1/7.0;
      double eyeVerticalBorderFactor = 1/12.0;
      int    eyeYSlab = 20;
      int    eyeXSlab = 20;
-     int    eyeThreshold = 70;
-     double eyeRingFactor = 1.4;
-     double eyeMaskCornerXFactor = 0.85;
-     double eyeMaskCornerYFactor = 0.6;
+     int    eyeThreshold = 30;
+     double eyeRingFactor = 1.25;
+     double eyeMaskCornerXFactor = 0.8;
+     double eyeMaskCornerYFactor = 1.0;
      double eyeRegistrationSize = 100;
 
      //Nerve fitting paramaters
-     double nerveXRegionFactor = 1.0;
-     double nerveYRegionFactor = 0.8;
-     double nerveYSizeFactor =  1.2;
-     double nerveYOffsetFactor =  0.2;
-     double nerveInitialSmoothXFactor = 4;
-     double nerveInitialSmoothYFactor = 30;
+     double nerveXRegionFactor = 1.2;
+     double nerveYRegionFactor = 0.9;
+     double nerveYSizeFactor =  1.5;
+     double nerveYOffsetFactor =  0.1;
+     double nerveInitialSmoothXFactor = 2;
+     double nerveInitialSmoothYFactor = 20;
      int    nerveInitialThreshold = 75;
      double nerveOpeningRadiusFactor = 1/70.0;
-     double nerveVerticalBorderFactor = 1/10.0;
+     int    nerveBorderThreshold = 25;
+     //double nerveVerticalBorderFactor = 1/20.0;
      int    nerveHorizontalBoder = 2;
-     int    nerveRegistrationThreshold = 65;
-     double nerveRefineVerticalBorderFactor = 1/20.0;
+     int    nerveRegistrationThreshold = 50;
+     //double nerveRefineVerticalBorderFactor = 1/20.0;
      double nerveRegsitrationSmooth = 3;
   };
 

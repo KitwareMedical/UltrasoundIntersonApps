@@ -59,23 +59,23 @@ class ITKFilterFunctions{
     typedef typename itk::SmoothingRecursiveGaussianImageFilter<Image, Image> GaussianFilter;
     typedef typename GaussianFilter::Pointer GaussianFilterPointer;
     typedef typename GaussianFilter::SigmaArrayType SigmaArrayType;
-    
+
     typedef typename itk::ThresholdImageFilter<Image>  ThresholdFilter;
     typedef typename ThresholdFilter::Pointer ThresholdFilterPointer;
 
     typedef typename itk::SubtractImageFilter<Image, Image> SubtractFilter;
     typedef typename SubtractFilter::Pointer SubtractFilterPointer;
-    
+
     typedef typename itk::AddImageFilter<Image, Image> AddFilter;
     typedef typename AddFilter::Pointer AddFilterPointer;
-  
+
     typedef itk::BinaryThresholdImageFilter <Image, Image> BinaryThresholdFilter;
     typedef typename BinaryThresholdFilter::Pointer BinaryThresholdFilterPointer;
 
     typedef itk::PermuteAxesImageFilter<Image> PermuteFilter;
     typedef typename PermuteFilter::Pointer PermuteFilterPointer;
     typedef typename PermuteFilter::PermuteOrderArrayType PermuteArray;
-  
+
     typedef itk::FlipImageFilter<Image> FlipFilter;
     typedef typename FlipFilter::Pointer FlipFilterPointer;
     typedef typename FlipFilter::FlipAxesArrayType FlipArray;
@@ -88,9 +88,9 @@ class ITKFilterFunctions{
     rescale->Update();
 
     return rescale->GetOutput();
-    
+
   };
- 
+
 
   static ImagePointer GaussSmooth(ImagePointer image, SigmaArrayType sigma){
     GaussianFilterPointer smooth = GaussianFilter::New();
@@ -106,20 +106,20 @@ class ITKFilterFunctions{
     thresholdFilter->SetInput( image);
     thresholdFilter->ThresholdAbove( t );
     thresholdFilter->SetOutsideValue( outside );
-    thresholdFilter->Update();  
-    return thresholdFilter->GetOutput(); 
+    thresholdFilter->Update();
+    return thresholdFilter->GetOutput();
   };
- 
- 
+
+
   static ImagePointer ThresholdBelow(ImagePointer image, PixelType t, PixelType outside){
     ThresholdFilterPointer thresholdFilter  = ThresholdFilter::New();
     thresholdFilter->SetInput( image);
     thresholdFilter->ThresholdBelow( t );
     thresholdFilter->SetOutsideValue( outside );
-    thresholdFilter->Update();  
-    return thresholdFilter->GetOutput(); 
+    thresholdFilter->Update();
+    return thresholdFilter->GetOutput();
   };
-   
+
   static ImagePointer BinaryThreshold(ImagePointer image, PixelType tLow, PixelType tHigh, PixelType inside, PixelType outside){
     BinaryThresholdFilterPointer thresholdFilter  = BinaryThresholdFilter::New();
     thresholdFilter->SetInput( image);
@@ -127,8 +127,8 @@ class ITKFilterFunctions{
     thresholdFilter->SetUpperThreshold( tHigh );
     thresholdFilter->SetOutsideValue( outside );
     thresholdFilter->SetInsideValue( inside );
-    thresholdFilter->Update();  
-    return thresholdFilter->GetOutput(); 
+    thresholdFilter->Update();
+    return thresholdFilter->GetOutput();
   };
 
   static ImagePointer Subtract(ImagePointer i1, ImagePointer i2){
@@ -138,7 +138,7 @@ class ITKFilterFunctions{
     subtract->Update();
     return subtract->GetOutput();
   };
-  
+
 
   static ImagePointer Add(ImagePointer i1, ImagePointer i2){
     AddFilterPointer add = AddFilter::New();
@@ -147,7 +147,7 @@ class ITKFilterFunctions{
     add->Update();
     return add->GetOutput();
   };
-  
+
 
 
 
@@ -155,31 +155,31 @@ class ITKFilterFunctions{
   static ImagePointer PermuteImage(ImagePointer image, PermuteArray &order){
      PermuteFilterPointer permute = PermuteFilter::New();
      permute->SetOrder(  order );
-     permute->SetInput( image ); 
+     permute->SetInput( image );
      permute->Update();
      image = permute->GetOutput();
-     return image; 
-  }; 
+     return image;
+  };
 
   static ImagePointer FlipImage(ImagePointer image, FlipArray &flip){
      FlipFilterPointer flipper = FlipFilter::New();
      flipper->SetFlipAxes(  flip );
-     flipper->SetInput( image ); 
+     flipper->SetInput( image );
      flipper->Update();
      image = flipper->GetOutput();
-     return image; 
-  }; 
+     return image;
+  };
 
 
 
-  
+
   static void AddBorder(ImagePointer image, int w){
     ImageSize size = image->GetLargestPossibleRegion().GetSize();
     AddHorizontalBorder(image, w);
     AddVerticalBorder(image, w);
   };
-    
-  
+
+
   static void AddHorizontalBorder(ImagePointer image, int w){
 
     ImageSize size = image->GetLargestPossibleRegion().GetSize();
@@ -193,7 +193,7 @@ class ITKFilterFunctions{
 	      index[1] = size[1]-1-j;
 	      image->SetPixel(index, 100);
       }
-    }    
+    }
   };
 
   static void AddHorizontalBorderTop(ImagePointer image, int w){
@@ -207,9 +207,9 @@ class ITKFilterFunctions{
 	      index[1] = j;
 	      image->SetPixel(index, 100);
       }
-    }    
+    }
   };
-  
+
   static void AddVerticalBorder(ImagePointer image, int w){
     ImageSize size = image->GetLargestPossibleRegion().GetSize();
     for(int i=0; i<size[1]; i++){
@@ -224,10 +224,32 @@ class ITKFilterFunctions{
     }
   };
 
+  static void AddVerticalBorderLeft(ImagePointer image, int w){
+    ImageSize size = image->GetLargestPossibleRegion().GetSize();
+    for(int i=0; i<size[1]; i++){
+      ImageIndex index;
+      index[1] = i;
+      for(int j=0; j<std::min( (int) size[0], w); j++){
+        index[0] = j;
+        image->SetPixel(index, 100);
+      }
+    }
+  };
+  static void AddVerticalBorderRight(ImagePointer image, int w){
+    ImageSize size = image->GetLargestPossibleRegion().GetSize();
+    for(int i=0; i<size[1]; i++){
+      ImageIndex index;
+      index[1] = i;
+      for(int j=0; j<std::min( (int) size[0], w); j++){
+        index[0] = size[0]-1-j;
+        image->SetPixel(index, 100);
+      }
+    }
+  };
 
 
 
-  static void RescaleRows(ImagePointer image){  
+  static void RescaleRows(ImagePointer image){
 
 	  ImageSize size = image->GetLargestPossibleRegion().GetSize();
 

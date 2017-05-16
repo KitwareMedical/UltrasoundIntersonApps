@@ -27,6 +27,15 @@ Build each in "Release" configuration and in the following order:
 Usage:
 UltrasoundOpticNerveUI
 
+## Creating a Binary Package
+
+The CMakelists.txt conatins instructions for cpack to create a zip file that
+includes all required dlls and the exectubale.
+
+Running the target "package" (i.e. ninja package if you used ninja as your cmake generator) 
+will create that zip file. 
+ 
+
 # Software Architecture 
 
 This is a multithreaded architecture with three main threads.

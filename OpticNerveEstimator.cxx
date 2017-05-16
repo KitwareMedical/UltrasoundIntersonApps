@@ -413,7 +413,7 @@ OpticNerveEstimator::FitEye( OpticNerveEstimator::ImageType::Pointer inputImage,
 
   double outside = 100;
   //intial guess of radiusY axis
-  double r1 =  std::min( 1.4 * eye.initialRadiusY, eye.initialRadiusX) ;
+  double r1 =  std::min( 1.2 * eye.initialRadiusY, eye.initialRadiusX) ;
   //inital guess of radiusX axis
   double r2 = eye.initialRadiusY;
   //width of the ellipse ring rf*r1, rf*r2
@@ -469,11 +469,15 @@ OpticNerveEstimator::FitEye( OpticNerveEstimator::ImageType::Pointer inputImage,
                                                        r2 * ( algParams.eyeRingFactor + 1 ) / 2,
                                                        0, 100 );
   //remove left and right corners from mask
-  int xlim_l = std::max(0, (int) (eye.initialCenterIndex[0] - algParams.eyeMaskCornerXFactor * r1) );
-  int xlim_r = std::min( (int) imageSize[0], (int)( eye.initialCenterIndex[0] + algParams.eyeMaskCornerXFactor * r1 ) );
+  int xlim_l = std::max(0,
+                  (int) (eye.initialCenterIndex[0] - algParams.eyeMaskCornerXFactor * r1 * imageSpacing[0] ) );
+  int xlim_r = std::min( (int) imageSize[0],
+                  (int)( eye.initialCenterIndex[0] + algParams.eyeMaskCornerXFactor * r1 * imageSpacing[0] ) );
 
-  int ylim_t = std::max(0, (int) (eye.initialCenterIndex[1] - algParams.eyeMaskCornerYFactor * r2) );
-  int ylim_b = std::min( (int) imageSize[1], (int)( eye.initialCenterIndex[1] + algParams.eyeMaskCornerYFactor * r2) );
+  int ylim_b = std::max(0,
+                   (int) (eye.initialCenterIndex[1] - algParams.eyeMaskCornerYFactor * r2 * imageSpacing[1] ) );
+  int ylim_t = std::min( (int) imageSize[1],
+                   (int)( eye.initialCenterIndex[1] + algParams.eyeMaskCornerYFactor * r2 * imageSpacing[1] ) );
 
   for(int i=0; i<xlim_l; i++){
     ImageType::IndexType index;
@@ -515,7 +519,7 @@ OpticNerveEstimator::FitEye( OpticNerveEstimator::ImageType::Pointer inputImage,
   RegistrationType::Pointer   registration  = RegistrationType::New();
 
 
-  optimizer->SetGradientConvergenceTolerance( 0.000001 );
+  optimizer->SetGradientConvergenceTolerance( 0.0000001 );
   optimizer->SetLineSearchAccuracy( 0.5 );
   optimizer->SetDefaultStepLength( 0.00001 );
 #ifdef DEBUG_PRINT
@@ -813,8 +817,37 @@ OpticNerveEstimator::OpticNerveEstimator::FitNerve(
   nerveCastFilter->Update();
   UnsignedCharImageType::Pointer nerveImage2 = nerveCastFilter->GetOutput();
 
-  ITKFilterFunctions<UnsignedCharImageType>::AddVerticalBorder(nerveImage2,
-               std::min(imageSize[0], imageSize[1]) * algParams.nerveVerticalBorderFactor );
+  //Compute left and right border
+  int leftBorder = 5;
+  ImageType::IndexType borderIndex;
+  borderIndex[1] = nerveSize[1]/3;
+  for(int i=5; i<nerveSize[0]; i++){
+    borderIndex[0] = i;
+    if( nerveImage->GetPixel(borderIndex) < algParams.nerveBorderThreshold ){
+      leftBorder++;
+    }
+    else{
+      break;
+    }
+  }
+  int rightBorder = 5;
+  for(int i=nerveSize[0]-5; i>=0; i--){
+    borderIndex[0] = i;
+    if( nerveImage->GetPixel(borderIndex) < algParams.nerveBorderThreshold ){
+      rightBorder++;
+    }
+    else{
+      break;
+    }
+  }
+#ifdef DEBUG_PRINT
+  std::cout << "Borders: " << leftBorder << " | " << rightBorder << std::endl;
+#endif
+
+
+  ITKFilterFunctions<UnsignedCharImageType>::AddVerticalBorderLeft(nerveImage2, leftBorder );
+  ITKFilterFunctions<UnsignedCharImageType>::AddVerticalBorderRight(nerveImage2, rightBorder );
+
   ITKFilterFunctions<UnsignedCharImageType>::AddHorizontalBorder(nerveImage2, algParams.nerveHorizontalBoder );
 
   SignedDistanceFilter::Pointer nerveDistanceFilter = SignedDistanceFilter::New();
@@ -936,8 +969,13 @@ OpticNerveEstimator::OpticNerveEstimator::FitNerve(
   nerveCastFilter2->Update();
   UnsignedCharImageType::Pointer nerveImage3 = nerveCastFilter2->GetOutput();
 
-  ITKFilterFunctions<UnsignedCharImageType>::AddVerticalBorder(nerveImage3,
-            algParams.nerveRefineVerticalBorderFactor* std::min(imageSize[0], imageSize[1]) );
+  //ITKFilterFunctions<UnsignedCharImageType>::AddVerticalBorder(nerveImage3,
+  //          algParams.nerveRefineVerticalBorderFactor* std::min(imageSize[0], imageSize[1]) );
+
+  ITKFilterFunctions<UnsignedCharImageType>::AddVerticalBorderLeft(nerveImage3, leftBorder );
+  ITKFilterFunctions<UnsignedCharImageType>::AddVerticalBorderRight(nerveImage3, rightBorder );
+
+
   ITKFilterFunctions<UnsignedCharImageType>::AddHorizontalBorder(nerveImage3,
             algParams.nerveHorizontalBoder );
 

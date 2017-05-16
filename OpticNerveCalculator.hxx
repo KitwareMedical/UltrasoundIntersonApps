@@ -127,15 +127,15 @@ public:
      OpticNerveEstimator one;
      //change algorithm defaults
      //TODO: do it more centralized
-     one.algParams.eyeInitialBlurFactor = 3;
+     //one.algParams.eyeInitialBlurFactor = 3;
      //one.algParams.eyeVerticalBorderFactor = 1/10.0;      
      //one.algParams.eyeHorizontalBorderFactor = 1/30.0;      
-     one.algParams.eyeRingFactor = 1.4;
+     //one.algParams.eyeRingFactor = 1.4;
      one.algParams.eyeInitialBinaryThreshold = 40;
      //one.algParams.eyeMaskCornerXFactor = 0.9;
      //one.algParams.eyeMaskCornerYFactor = 0.1;
-     one.algParams.nerveYOffsetFactor = 0.15;
-     one.algParams.nerveYRegionFactor = 1.0;
+     //one.algParams.nerveYOffsetFactor = 0.15;
+     one.algParams.nerveYRegionFactor = 2.0;
 
      typedef itk::CastImageFilter< IntersonArrayDevice::ImageType, OpticNerveEstimator::ImageType> Caster;
      Caster::Pointer caster = Caster::New();
