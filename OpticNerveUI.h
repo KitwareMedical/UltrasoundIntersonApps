@@ -100,6 +100,11 @@ private:
 
   int lastRendered;
   int lastOverlayRendered;
+
+  static void __stdcall ProbeHardButtonCallback(void *instance){
+     OpticNerveUI *oui = (OpticNerveUI*) instance;
+     oui->ToggleEstimation();
+  };
 };
 
 #endif

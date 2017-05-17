@@ -130,6 +130,8 @@ void OpticNerveUI::ConnectProbe(){
      ftext << fs[i] << " hz";
      ui->dropDown_Frequency->addItem( ftext.str().c_str() );
   }
+  
+  intersonDevice.GetHWControls().SetNewHardButtonCallback( &ProbeHardButtonCallback, this);
 
   mmPerPixel = intersonDevice.GetMmPerPixel();
   if ( !intersonDevice.Start() ){

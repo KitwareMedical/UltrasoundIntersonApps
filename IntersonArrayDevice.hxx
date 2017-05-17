@@ -157,9 +157,10 @@ public:
     }
 
 #ifdef DEBUG_PRINT
-  std::cout << "Disable hard button" << std::endl;
+  //std::cout << "Disable hard button" << std::endl;
 #endif
-    hwControls.DisableHardButton();
+  //hwControls.DisableHardButton();
+  hwControls.EnableHardButton();
 
 #ifdef DEBUG_PRINT
   std::cout << "Abort scan" << std::endl;
@@ -268,6 +269,11 @@ public:
 
   float GetMmPerPixel(){
     return container.GetMmPerPixel();
+  };
+
+
+  HWControlsType &GetHWControls(){
+    return hwControls;
   };
 
 private:
