@@ -68,10 +68,28 @@ OpticNerveUI::OpticNerveUI(int numberOfThreads, int bufferSize, QWidget *parent)
         connect( ui->checkBox_NerveOnly, SIGNAL( stateChanged(int) ), this,
                  SLOT( SetNerveOnly() ) ); 
 
+        connect( ui->slider_eyeThreshold1, SIGNAL( valueChanged(int) ), this,
+                 SLOT( SetEyeThreshold1() ) ); 
+        connect( ui->slider_eyeThreshold2, SIGNAL( valueChanged(int) ), this,
+                 SLOT( SetEyeThreshold2() ) ); 
+        connect( ui->slider_nerveThreshold1, SIGNAL( valueChanged(int) ), this,
+                 SLOT( SetNerveThreshold1() ) ); 
+        connect( ui->slider_nerveThreshold2, SIGNAL( valueChanged(int) ), this,
+                 SLOT( SetNerveThreshold2() ) ); 
+
 
         intersonDevice.SetRingBufferSize( bufferSize );
 
-        opticNerveCalculator.SetNumberOfThreads( numberOfThreads ); 
+        //Set optic nerve default params
+        algParams.nerveYSizeFactor = 2.0;
+        algParams.nerveYRegionFactor = 1.2;
+        algParams.nerveYOffsetFactor = 0;
+        SetEyeThreshold1();
+        SetEyeThreshold2();
+        SetNerveThreshold1();
+        SetNerveThreshold2();
+        
+       opticNerveCalculator.SetNumberOfThreads( numberOfThreads ); 
  
                
 
@@ -200,24 +218,27 @@ void OpticNerveUI::UpdateImage(){
 #ifdef DEBUG_PRINT
      std::cout << "Display overlay image done" << std::endl;
 #endif
-   }
 
 
-  //display the estimates
-  std::ostringstream cestimate;   
-  cestimate << std::setprecision(1) << std::setw(3) << std::fixed;
-  cestimate << opticNerveCalculator.GetCurrentEstimate() * mmPerPixel << " mm";
-  ui->label_estimateCurrent->setText( cestimate.str().c_str() );
+     //display the estimates
+     OpticNerveCalculator::Statistics stats = opticNerveCalculator.GetEstimateStatistics();
+     std::ostringstream cestimate;   
+     cestimate << std::setprecision(1) << std::setw(3) << std::fixed;
+     cestimate << opticNerveCalculator.GetCurrentEstimate() * mmPerPixel << " mm";
+     ui->label_estimateCurrent->setText( cestimate.str().c_str() );
 
-  std::ostringstream mestimate;   
-  mestimate << std::setprecision(1) << std::setw(3) << std::fixed;
-  mestimate << opticNerveCalculator.GetMeanEstimate() * mmPerPixel << " mm";
-  ui->label_estimateMean->setText( mestimate.str().c_str() );
-  
-  std::ostringstream mdestimate;   
-  mdestimate << std::setprecision(1) << std::setw(3) << std::fixed;
-  mdestimate << opticNerveCalculator.GetMedianEstimate() * mmPerPixel << " mm";
-  ui->label_estimateMedian->setText( mdestimate.str().c_str() );
+     std::ostringstream mestimate;   
+     mestimate << std::setprecision(1) << std::setw(3) << std::fixed;
+     mestimate << stats.mean * mmPerPixel << " mm  +/- " << stats.stdev * mmPerPixel;
+     ui->label_estimateMean->setText( mestimate.str().c_str() );
+
+     std::ostringstream mdestimate;   
+     mdestimate << std::setprecision(1) << std::setw(3) << std::fixed;
+     mdestimate << stats.lowerQuartile * mmPerPixel << " mm | " 
+	     << stats.median * mmPerPixel        << " mm | "
+	     << stats.upperQuartile * mmPerPixel << " mm";
+     ui->label_estimateMedian->setText( mdestimate.str().c_str() );
+  }
   this->timer->start();
 }
 
@@ -266,4 +287,24 @@ void OpticNerveUI::SetNerveDepth(){
 
 void OpticNerveUI::SetNerveOnly(){
   this->opticNerveCalculator.SetNerveOnly( this->ui->checkBox_NerveOnly->isChecked() );
+}
+
+void OpticNerveUI::SetEyeThreshold1(){
+  algParams.eyeInitialBinaryThreshold = this->ui->slider_eyeThreshold1->value();
+  opticNerveCalculator.SetAlgorithmParameters(algParams);
+}
+
+void OpticNerveUI::SetEyeThreshold2(){
+  algParams.eyeThreshold = this->ui->slider_eyeThreshold2->value();
+  opticNerveCalculator.SetAlgorithmParameters(algParams);
+}
+
+void OpticNerveUI::SetNerveThreshold1(){
+  algParams.nerveInitialThreshold = this->ui->slider_nerveThreshold1->value();
+  opticNerveCalculator.SetAlgorithmParameters(algParams);
+}
+
+void OpticNerveUI::SetNerveThreshold2(){
+  algParams.nerveRegistrationThreshold = this->ui->slider_nerveThreshold2->value();
+  opticNerveCalculator.SetAlgorithmParameters(algParams);
 }

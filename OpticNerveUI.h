@@ -71,6 +71,11 @@ protected slots:
   void SetNerveTop();
   void SetNerveOnly();
 
+  void SetEyeThreshold1();
+  void SetEyeThreshold2();
+  void SetNerveThreshold1();
+  void SetNerveThreshold2();
+  
   void ToggleEstimation();
 
   /** Update the images displayed from the probe */
@@ -86,6 +91,7 @@ private:
   
   QTimer *processing;
   
+  OpticNerveEstimator::Parameters algParams;
   OpticNerveCalculator opticNerveCalculator;
   IntersonArrayDevice intersonDevice;
   float mmPerPixel;

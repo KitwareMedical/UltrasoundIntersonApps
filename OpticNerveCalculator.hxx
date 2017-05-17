@@ -18,7 +18,16 @@
 class OpticNerveCalculator
 {
 public:
-  
+ 
+  struct Statistics{
+     double mean = -1;
+     double stdev = -1;
+     double median = -1;
+     double lowerQuartile = -1;
+     double upperQuartile = -1;
+     
+  };
+ 
   OpticNerveCalculator(): currentWrite(-1), nTotalWrite(0), 
                           currentRead(0){
     maxNumberOfThreads=1;
@@ -125,17 +134,7 @@ public:
 
      //TODO: Avoid instantion of filters every time -> setup a pipeline 
      OpticNerveEstimator one;
-     //change algorithm defaults
-     //TODO: do it more centralized
-     //one.algParams.eyeInitialBlurFactor = 3;
-     //one.algParams.eyeVerticalBorderFactor = 1/10.0;      
-     //one.algParams.eyeHorizontalBorderFactor = 1/30.0;      
-     //one.algParams.eyeRingFactor = 1.4;
-     one.algParams.eyeInitialBinaryThreshold = 40;
-     //one.algParams.eyeMaskCornerXFactor = 0.9;
-     //one.algParams.eyeMaskCornerYFactor = 0.1;
-     //one.algParams.nerveYOffsetFactor = 0.15;
-     one.algParams.nerveYRegionFactor = 2.0;
+     one.algParams = algParams;
 
      typedef itk::CastImageFilter< IntersonArrayDevice::ImageType, OpticNerveEstimator::ImageType> Caster;
      Caster::Pointer caster = Caster::New();
@@ -278,19 +277,40 @@ public:
      return currentEstimate;
    };
 
-   double GetMedianEstimate(){ 
-     double median = -1;
-     if(estimates.size() > 0 ){
+   Statistics GetEstimateStatistics(){ 
+      Statistics stats;
+      if(estimates.size() > 0 ){
         //Need to make sure estimates doesn't get modified
         DWORD wresult = WaitForSingleObject( toProcessMutex, INFINITE);
+        stats.mean = GetMeanEstimate();
+        double m2 = stats.mean * stats.mean;
+        stats.stdev = 0;
+        int low = estimates.size() / 4;
+        int med = estimates.size() / 2;
+        int high = 3 * estimates.size() / 4;
         std::set<double>::iterator it = estimates.begin();
-        for(int i=0; i<estimates.size() / 2; i++){
-          ++it;
+        for(int i=0; i<estimates.size() ; i++, ++it){
+           double tmp = *it - stats.mean;
+           stats.stdev += tmp * tmp; 
+           if( i == low){
+             stats.lowerQuartile = *it;
+           }
+           else if( i == med ){
+             stats.median = *it;
+           }
+           else if( i ==  high){
+             stats.upperQuartile = *it;
+           } 
         }
-        median = *it;
+        if(estimates.size() > 1){
+          stats.stdev = sqrt( stats.stdev / (estimates.size() - 1) ); 
+        }
+        else{
+          stats.stdev = 0;
+        }
         ReleaseMutex(toProcessMutex);
      }
-     return median;
+     return stats;
    }
 
    bool isRunning(){
@@ -309,8 +329,13 @@ public:
      nerveOnly = nOnly;
    };
 
+   void SetAlgorithmParameters(OpticNerveEstimator::Parameters &params){
+      algParams = params;
+   };
+
 private:
 
+  OpticNerveEstimator::Parameters algParams;
   bool nerveOnly;
   int depth;
   int height;

@@ -26,7 +26,6 @@ project( UltrasoundOpticNerveUI CXX )
 
 
 FIND_PACKAGE( IntersonArraySDKCxx REQUIRED )
-message("lib:${IntersonArraySDKCxx_LIBRARIES}")
 
 find_package( ITK REQUIRED )
 include( ${ITK_USE_FILE} )
@@ -80,7 +79,10 @@ include(InstallRequiredSystemLibraries)
 set(CPACK_MONOLITHIC_INSTALL ON)
 set(CPACK_PACKAGE_VENDOR "Kitware, Inc.")
 set(CPACK_GENERATOR "ZIP")
-
+set(CPACK_PACKAGE_VERSION "0.1.2")
+set(CPACK_PACKAGE_VERSION_MAJOR "0")
+set(CPACK_PACKAGE_VERSION_MINOR "1")
+set(CPACK_PACKAGE_VERSION_PATCH "2")
 
 set(CPACK_INSTALL_CMAKE_PROJECTS "${IntersonArraySDKCxx_DIR};IntersonArraySDKCxx;Runtime;/")
 set(CPACK_INSTALL_CMAKE_PROJECTS "${CPACK_INSTALL_CMAKE_PROJECTS};${CMAKE_BINARY_DIR};${PROJECT_NAME};ALL;/")
