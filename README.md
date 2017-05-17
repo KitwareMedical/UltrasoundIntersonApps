@@ -1,6 +1,6 @@
 # Ultrasound Optic Nerve Estimation UI
 
-A QT user interface for doing optic nerve width estimation.
+A QT user interface for automatic optic nerve width estimation suing the INterson linear array ultrasound probe.
 
 Uses copied code from the UltrsoundOpticNerveEstimation repository.
 
@@ -14,15 +14,16 @@ Build each in "Release" configuration and in the following order:
      + with VS 2012 QT complains about c++11 compliancy.
      + VS 2017 complains about a QT bug thats fixed in 5.9 but with 5.9 VTK complains.   
 2. ITK
-   + github.com:/Kitware/ITK
+   + https://github.com/Kitware/ITK
 3. IntersonArraySDK
+   + From Interson (https://interson.com/)
+   + To run the probe the Interson drivers need to be installed using SeeMoreArraySetup.exe (from the IntersonArraySDK)
 4. IntersonArraySDKCxx (Must be INSTALLED - cannot use build dir)
-   + github.com:/KitwareMedical/IntersonArraySDKCxx
+   + https://github.com/KitwareMedical/IntersonArraySDKCxx
 5. UltrasoundOpticNerveUI
-    + I had to copy IntersonArraySDKcxx.lib IntersonSDK.lib from their build dircetories to the build dir. They couldn't be found otherwise.
-    + IntersonArrayCxxControlsHWControls.cxx has a line #using IntersonArray.dll, this requires that IntersonArray.dll is either in the LIBPATH or in directory the exectubale is run in. 
-    + For running from commandline all dll's used also need ito be in the PATH (see below).
-    + Run SeeMoreArraySetup.exe (from the IntersonArraySDK)
+    + For running from commandline all dll's used also need ito be in the PATH. 
+      The CMakefiles.txt contains a package target that will collect all dlls and create a zip file (See creating a binary package).
+    
 
 Usage:
 UltrasoundOpticNerveUI
@@ -46,7 +47,7 @@ This is a multithreaded architecture with three main threads.
 
 # TODO
 1. Cleanup code
-2. Simply optic nerev estimator. 
+2. Simplify optic nerev estimator. 
 3. The OpticNerveEstimator is allocated and deallcoated every time (and all the filters required). Shouls set this up as a a pipeline 
 4. The optic nerve width estimates are not stored in order (display of estimate sis out order)
 
