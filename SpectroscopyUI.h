@@ -24,8 +24,8 @@ limitations under the License.
 
 #pragma once
 
-#ifndef OPTICNERVEUI_H 
-#define OPTICNERVEUI_H
+#ifndef SPECTROSCOPYUI_H 
+#define SPECTROSCOPYUI_H 
 
 // Print debug statements
 // Using print because I am to inept to setup visual studio
@@ -38,9 +38,8 @@ limitations under the License.
 #include <qgroupbox.h>
 #include <QCloseEvent>
 
-
-#include "ui_OpticNerve.h"
-#include "OpticNerveCalculator.hxx"
+#include "ui_Spectroscopy.h"
+#include "IntersonArrayDeviceRF.hxx"
 
 //Forward declaration of Ui::MainWindow;
 namespace Ui{
@@ -48,13 +47,13 @@ namespace Ui{
 }
 
 //Declaration of OpticNerveUI
-class OpticNerveUI: public QMainWindow
+class SpectroscopyUI: public QMainWindow
 {
 	Q_OBJECT
 
 public:
-  OpticNerveUI(int numberOfThreads, int bufferSize, QWidget *parent = nullptr);
-  ~OpticNerveUI();
+  SpectroscopyUI(int bufferSize, QWidget *parent = nullptr);
+  ~SpectroscopyUI();
 
 protected:
   void  closeEvent(QCloseEvent * event);
@@ -66,44 +65,19 @@ protected slots:
   void SetFrequency();
   void SetDepth();
   
-  void SetNerveDepth();
-  void SetNerveTop();
-  void SetNerveOnly();
-
-  void SetEyeThreshold1();
-  void SetEyeThreshold2();
-  void SetNerveThreshold1();
-  void SetNerveThreshold2();
-  
-  void ToggleEstimation();
-
   /** Update the images displayed from the probe */
   void UpdateImage();
-
  
-  void UpdateEstimateFrameRate();
  
 private:
   /** Layout for the Window */
   Ui::MainWindow *ui;
   QTimer *timer;
   
-  QTimer *processing;
-  
-  OpticNerveEstimator::Parameters algParams;
-  OpticNerveCalculator opticNerveCalculator;
-  IntersonArrayDevice intersonDevice;
-  float mmPerPixel;
- 
-  int previousNumberOfEstimates;
+  IntersonArrayDeviceRF intersonDevice;
+  int lastBModeRendered;
+  int lastRFRendered;
 
-  int lastRendered;
-  int lastOverlayRendered;
-
-  static void __stdcall ProbeHardButtonCallback(void *instance){
-     OpticNerveUI *oui = (OpticNerveUI*) instance;
-     oui->ToggleEstimation();
-  };
 };
 
 #endif

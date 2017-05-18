@@ -27,6 +27,8 @@ limitations under the License.
 //const double frequencies[] = { 2.5, 3.5, 5.0 };
 
 #include "OpticNerveUI.h"
+
+#include "ITKQtHelpers.hxx"
 #include "ITKFilterFunctions.h"
 
 #include <sstream>

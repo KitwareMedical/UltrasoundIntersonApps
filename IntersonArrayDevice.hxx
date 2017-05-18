@@ -39,18 +39,20 @@ public:
   ~IntersonArrayDevice(){
   };
 
+
   void Stop(){
     hwControls.StopAcquisition();
     container.StopReadScan();
     //Sleep( 100 ); // "time to stop"
   };
+
  
   bool Start(){
     container.DisposeScan();
-  
     container.StartReadScan();
     return hwControls.StartBmode(); 
   };
+
 
   void SetFrequency(int fIndex){
     if(frequencyIndex == fIndex){
@@ -64,6 +66,7 @@ public:
       Start();
     }  
   }
+
 
   int SetDepth(int d){
     if(d == depth){
@@ -275,6 +278,8 @@ public:
   HWControlsType &GetHWControls(){
     return hwControls;
   };
+
+
 
 private:
 

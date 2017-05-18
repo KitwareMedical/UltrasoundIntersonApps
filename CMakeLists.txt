@@ -24,65 +24,137 @@ cmake_minimum_required( VERSION 3.5 )
 
 project( UltrasoundOpticNerveUI CXX )
 
+option(Build_Spectroscopy ON)
 
+#Required packages and libraries
 FIND_PACKAGE( IntersonArraySDKCxx REQUIRED )
 
 find_package( ITK REQUIRED )
+
+if( ${Build_Spectroscopy} )
+find_package(ITK COMPONENTS 
+  Ultrasound
+  ITKBinaryMathematicalMorphology
+  ITKCommon
+  ITKDistanceMap
+  ITKImageFilterBase
+  ITKImageFunction
+  ITKImageFusion
+  ITKImageGrid
+  ITKImageIntensity
+  ITKLabelMap
+  ITKMathematicalMorphology
+  ITKMetricsv4
+  ITKOptimizersv4
+  ITKRegistrationMethodsv4
+  ITKSmoothing
+  ITKSpatialObjects
+  ITKThresholding
+  ITKTransform
+)
+else()
+find_package(ITK COMPONENTS 
+  ITKBinaryMathematicalMorphology
+  ITKCommon
+  ITKDistanceMap
+  ITKImageFilterBase
+  ITKImageFunction
+  ITKImageFusion
+  ITKImageGrid
+  ITKImageIntensity
+  ITKLabelMap
+  ITKMathematicalMorphology
+  ITKMetricsv4
+  ITKOptimizersv4
+  ITKRegistrationMethodsv4
+  ITKSmoothing
+  ITKSpatialObjects
+  ITKThresholding
+  ITKTransform
+)
+endif()
+
 include( ${ITK_USE_FILE} )
+
 
 
 find_package(Qt5 COMPONENTS Core Widgets REQUIRED)
 
+#Common setup
+include_directories( ${CMAKE_SOURCE_DIR} )
+include_directories( ${UltrasoundOpticNerveUI_SOURCE_DIR} )
+include_directories( ${CMAKE_CURRENT_BINARY_DIR} )
 
-set( source_files
+add_definitions( -DNOMINMAX )
+
+
+#Optic nerve ui executable
+
+qt5_wrap_ui( OpticNerveUI_H OpticNerve.ui )
+qt5_wrap_cpp( optic_source_files_moc OpticNerveUI.h )
+
+set( optic_source_files
   OpticNerveUIDriver.cxx
   OpticNerveUI.cxx
   OpticNerveEstimator.cxx
 )
 
-
-include_directories( ${CMAKE_SOURCE_DIR} )
-include_directories( ${UltrasoundOpticNerveUI_SOURCE_DIR} )
-#include_directories( ${IntersonArraySDKCxx_INCLUDE_DIRS} )
-#TODO: Hardcode hack above is wrong needs to be fixed in 
-#      IntersonArraySDKCxx
-#include_directories( "C:/Code/IntersonArraySDKCxx/include" )
-include_directories( ${CMAKE_CURRENT_BINARY_DIR} )
-
-add_definitions( -DNOMINMAX )
-
-qt5_wrap_ui( OpticNerveUI_H OpticNerve.ui )
-qt5_wrap_cpp( source_files_moc OpticNerveUI.h )
-
 add_executable( UltrasoundOpticNerveUI
-  ${source_files}
+  ${optic_source_files}
   ${OpticNerveUI_H}
-  ${source_files_moc}
+  ${optic_source_files_moc}
 )
 
 target_link_libraries( UltrasoundOpticNerveUI PUBLIC
   ${ITK_LIBRARIES}
-  #TODO Hardcode hack take correct library from INtersonArraySDKCxx
-  #IntersonArrayCxx.lib
   ${IntersonArraySDKCxx_LIBRARIES}
   Qt5::Widgets
 )
+
+
+#Spectroscopy ui executable
+if( ${Build_Spectroscopy} )
+
+qt5_wrap_ui( SpectroscopyUI_H Spectroscopy.ui )
+qt5_wrap_cpp( spectroscopy_source_files_moc SpectroscopyUI.h )
+
+set( spectroscopy_source_files
+  SpectroscopyUIDriver.cxx
+  SpectroscopyUI.cxx
+)
+
+add_executable( SpectroscopyUI 
+  ${spectroscopy_source_files}
+  ${SpectroscopyUI_H}
+  ${spectroscopy_source_files_moc}
+)
+
+target_link_libraries( SpectroscopyUI PUBLIC
+  ${ITK_LIBRARIES}
+  ${IntersonArraySDKCxx_LIBRARIES}
+  Qt5::Widgets
+)
+
+endif()
+
+
+#CPack setup
 
 install(TARGETS UltrasoundOpticNerveUI
   RUNTIME DESTINATION bin COMPONENT Runtime
   LIBRARY DESTINATION bin COMPONENT Runtime
   ARCHIVE DESTINATION lib COMPONENT Development
-  )
+)
 
 include(InstallRequiredSystemLibraries)
 
 set(CPACK_MONOLITHIC_INSTALL ON)
 set(CPACK_PACKAGE_VENDOR "Kitware, Inc.")
 set(CPACK_GENERATOR "ZIP")
-set(CPACK_PACKAGE_VERSION "0.1.2")
+set(CPACK_PACKAGE_VERSION "0.1.3")
 set(CPACK_PACKAGE_VERSION_MAJOR "0")
 set(CPACK_PACKAGE_VERSION_MINOR "1")
-set(CPACK_PACKAGE_VERSION_PATCH "2")
+set(CPACK_PACKAGE_VERSION_PATCH "3")
 
 set(CPACK_INSTALL_CMAKE_PROJECTS "${IntersonArraySDKCxx_DIR};IntersonArraySDKCxx;Runtime;/")
 set(CPACK_INSTALL_CMAKE_PROJECTS "${CPACK_INSTALL_CMAKE_PROJECTS};${CMAKE_BINARY_DIR};${PROJECT_NAME};ALL;/")
