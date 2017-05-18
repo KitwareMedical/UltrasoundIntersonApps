@@ -22,7 +22,7 @@
 ############################################################################
 cmake_minimum_required( VERSION 3.5 )
 
-project( UltrasoundOpticNerveUI CXX )
+project( IntersonUltrasoundApps CXX )
 
 option(Build_Spectroscopy ON)
 
@@ -99,18 +99,23 @@ set( optic_source_files
   OpticNerveEstimator.cxx
 )
 
-add_executable( UltrasoundOpticNerveUI
+add_executable( OpticNerveUI
   ${optic_source_files}
   ${OpticNerveUI_H}
   ${optic_source_files_moc}
 )
 
-target_link_libraries( UltrasoundOpticNerveUI PUBLIC
+target_link_libraries( OpticNerveUI PUBLIC
   ${ITK_LIBRARIES}
   ${IntersonArraySDKCxx_LIBRARIES}
   Qt5::Widgets
 )
 
+install(TARGETS OpticNerveUI
+  RUNTIME DESTINATION bin COMPONENT Runtime
+  LIBRARY DESTINATION bin COMPONENT Runtime
+  ARCHIVE DESTINATION lib COMPONENT Development
+)
 
 #Spectroscopy ui executable
 if( ${Build_Spectroscopy} )
@@ -135,16 +140,16 @@ target_link_libraries( SpectroscopyUI PUBLIC
   Qt5::Widgets
 )
 
+install(TARGETS SpectroscopyUI
+  RUNTIME DESTINATION bin COMPONENT Runtime
+  LIBRARY DESTINATION bin COMPONENT Runtime
+  ARCHIVE DESTINATION lib COMPONENT Development
+)
 endif()
 
 
 #CPack setup
 
-install(TARGETS UltrasoundOpticNerveUI
-  RUNTIME DESTINATION bin COMPONENT Runtime
-  LIBRARY DESTINATION bin COMPONENT Runtime
-  ARCHIVE DESTINATION lib COMPONENT Development
-)
 
 include(InstallRequiredSystemLibraries)
 
@@ -166,7 +171,7 @@ set(windeployqt "${_dir}/windeployqt.exe")
 if(NOT EXISTS ${windeployqt})
   message(FATAL_ERROR "Failed to locate windeployqt executable: [${windeployqt}]")
 endif()
-install(CODE "execute_process(COMMAND \"${windeployqt}\" \"\${CMAKE_INSTALL_PREFIX}/bin/UltrasoundOpticNerveUI.exe\")") 
+install(CODE "execute_process(COMMAND \"${windeployqt}\" \"\${CMAKE_INSTALL_PREFIX}/bin/OpticNerveUI.exe\")") 
 
 include(CPack)
 
