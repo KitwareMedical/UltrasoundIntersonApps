@@ -28,11 +28,10 @@ limitations under the License.
 
 #include "SpectroscopyUI.h"
 
+#include "imageIO.h"
 #include "ITKQtHelpers.hxx"
 #include "ITKFilterFunctions.h"
 
-#include "itkBModeImageFilter.h"
-#include "itkCastImageFilter.h"
 
 #include <sstream>
 #include <iomanip>
@@ -67,7 +66,34 @@ SpectroscopyUI::SpectroscopyUI(int bufferSize, QWidget *parent)
 	connect( ui->dropDown_Frequency, 
                  SIGNAL(currentIndexChanged(int)), this, SLOT(SetFrequency()));
 
+	connect( ui->slider_lowerFrequency, 
+                 SIGNAL(valueChanged(int)), this, SLOT(SetLowerFrequency()));
+	connect( ui->slider_upperFrequency, 
+                 SIGNAL(valueChanged(int)), this, SLOT(SetUpperFrequency()));
+	connect( ui->spinBox_order, 
+                 SIGNAL(valueChanged(int)), this, SLOT(SetOrder()));
+
+        connect( ui->pushButton_recordRF, 
+                 SIGNAL( clicked() ), this, SLOT( RecordRF() ) );
+
         intersonDevice.SetRingBufferSize( bufferSize );
+
+        m_CastFilter = CastFilter::New();
+  
+        m_BModeFilter = BModeImageFilter::New();
+        //add frequency filter
+        m_BandpassFilter =  ButterworthBandpassFilter::New();
+        SetLowerFrequency();
+        SetUpperFrequency();
+        SetOrder();
+
+        typedef BModeImageFilter::FrequencyFilterType  FrequencyFilterType;
+        FrequencyFilterType::Pointer freqFilter= FrequencyFilterType::New();
+        freqFilter->SetFilterFunction( m_BandpassFilter );
+
+        m_BModeFilter->SetFrequencyFilter( freqFilter );
+     
+
 
 	// Timer
 	this->timer = new QTimer(this);
@@ -93,14 +119,23 @@ void SpectroscopyUI::ConnectProbe(){
     return;
     //TODO: Show UI message
   }
-  
+ 
+  for(int i=0; i<freqCheckBoxes.size(); i++){
+    delete freqCheckBoxes[i];
+  }
   IntersonArrayDeviceRF::FrequenciesType fs = intersonDevice.GetFrequencies();
   ui->dropDown_Frequency->clear();
+  freqCheckBoxes.resize( fs.size() ); 
   for(int i=0; i<fs.size(); i++){
      std::ostringstream ftext;   
-     ftext << std::setprecision(1) << std::setw(3) << std::fixed;
-     ftext << fs[i] << " hz";
+     ftext << std::setprecision(2) << std::setw(2) << std::fixed;
+     ftext << fs[i] / 1000000.0 << " Mhz";
      ui->dropDown_Frequency->addItem( ftext.str().c_str() );
+     //Add check boxes to UI for recording
+     freqCheckBoxes[i] = new QCheckBox();
+     freqCheckBoxes[i]->setText( ftext.str().c_str() );
+     freqCheckBoxes[i]->setChecked( true );
+     ui->layout_record->addWidget( freqCheckBoxes[i], 1, i );
   }
   
 
@@ -122,32 +157,20 @@ void SpectroscopyUI::UpdateImage(){
     int currentIndex = intersonDevice.GetCurrentRFIndex();
   if( currentIndex >= 0 && currentIndex != lastRFRendered ){
      lastRFRendered = currentIndex;
-     typedef IntersonArrayDeviceRF::RFImageType  RFImageType;
      RFImageType::Pointer rf = intersonDevice.GetRFImage( currentIndex); 
  
-     //Rotate 90 degrees
-     ITKFilterFunctions< RFImageType >::PermuteArray order;
+
+     //Create BMode image
+     
+     m_CastFilter->SetInput( rf );
+     m_BModeFilter->SetInput( m_CastFilter->GetOutput() );
+     m_BModeFilter->Update(); 
+     ImageType::Pointer bmode = m_BModeFilter->GetOutput();
+     
+     ITKFilterFunctions< ImageType >::PermuteArray order;
      order[0] = 1;
      order[1] = 0;
-     
-     rf = ITKFilterFunctions< RFImageType>::PermuteImage(rf, order);
-
-     
-     //Create BMode image
-     typedef itk::Image<double, 2> ImageType;
-     typedef itk::CastImageFilter<RFImageType, ImageType> CastFilter;
-     CastFilter::Pointer caster = CastFilter::New();
-     caster->SetInput( rf );
-     caster->Update();
-     ImageType::Pointer crf = caster->GetOutput();
-     //crf = ITKFilterFunctions<ImageType>::Rescale(crf, 0, 1);
-
-     typedef itk::BModeImageFilter< ImageType >  BModeFilter;
-     BModeFilter::Pointer convertToBMode = BModeFilter::New();
-     convertToBMode->SetInput( crf );
-     convertToBMode->Update();
-     ImageType::Pointer bmode = convertToBMode->GetOutput();
-
+     bmode = ITKFilterFunctions< ImageType>::PermuteImage(bmode, order);
      bmode = ITKFilterFunctions< ImageType >::Rescale(bmode, 0, 255);
      QImage image1 = ITKQtHelpers::GetQImageColor<ImageType>( 
                           bmode,
@@ -161,6 +184,13 @@ void SpectroscopyUI::UpdateImage(){
 
 
      //Scale Rf image for display
+     //Rotate 90 degrees
+     //ITKFilterFunctions< RFImageType >::PermuteArray order;
+     //order[0] = 1;
+     //order[1] = 0;
+     rf = ITKFilterFunctions< RFImageType>::PermuteImage(rf, order);
+
+     
      rf = ITKFilterFunctions< RFImageType >::Rescale(rf, 0, 255);
      QImage image2 = ITKQtHelpers::GetQImageColor<RFImageType>( 
                           rf,
@@ -168,7 +198,7 @@ void SpectroscopyUI::UpdateImage(){
                           QImage::Format_RGB16 
                        );
   
-    ui->label_rfImage->setPixmap(QPixmap::fromImage(image2));
+    ui->label_rfImage->setPixmap( QPixmap::fromImage(image2) );
     ui->label_rfImage->setScaledContents( true );
     ui->label_rfImage->setSizePolicy( QSizePolicy::Ignored, QSizePolicy::Ignored );
   } 
@@ -177,8 +207,14 @@ void SpectroscopyUI::UpdateImage(){
 }
 
 void SpectroscopyUI::SetFrequency(){
-  this->intersonDevice.SetFrequency( 
-                     this->ui->dropDown_Frequency->currentIndex() + 1 ); 
+  bool success = this->intersonDevice.SetFrequency( 
+                     this->ui->dropDown_Frequency->currentIndex() ); 
+  IntersonArrayDeviceRF::FrequenciesType frequencies = intersonDevice.GetFrequencies();
+  if( !success ){
+    std::cout << "Failed to set frequency: " << frequencies[this->ui->dropDown_Frequency->currentIndex() ] << std::endl;
+    std::cout << "Current frequency: " << frequencies[ intersonDevice.GetFrequency() ] << std::endl;
+    std::cout << "Current frequency index: " << (int) intersonDevice.GetFrequency() << std::endl;
+  } 
 }
 
 void SpectroscopyUI::SetDepth(){
@@ -187,3 +223,75 @@ void SpectroscopyUI::SetDepth(){
   this->ui->spinBox_Depth->setValue(depth);
 }
 
+void SpectroscopyUI::SetUpperFrequency(){
+  double f = this->ui->slider_upperFrequency->value() / 
+             (double) this->ui->slider_upperFrequency->maximum(); 
+  this->m_BandpassFilter->SetUpperFrequency( f );
+  std::cout << *m_BandpassFilter << std::endl;
+}
+
+void SpectroscopyUI::SetLowerFrequency(){
+  double f = this->ui->slider_lowerFrequency->value() / 
+             (double) this->ui->slider_lowerFrequency->maximum(); 
+  this->m_BandpassFilter->SetLowerFrequency( f );
+  std::cout << *m_BandpassFilter << std::endl;
+}
+
+void SpectroscopyUI::SetOrder(){
+  this->m_BandpassFilter->SetOrder( this->ui->spinBox_order->value() );
+  std::cout << *m_BandpassFilter << std::endl;
+}
+
+void SpectroscopyUI::RecordRF(){
+  IntersonArrayDeviceRF::FrequenciesType frequencies = intersonDevice.GetFrequencies();
+  unsigned char voltLow  = ui->spinBox_voltLow->value();
+  unsigned char voltHigh = ui->spinBox_voltHigh->value();
+  unsigned char voltStep = ui->spinBox_voltStep->value();
+  unsigned char volt = intersonDevice.GetVoltage();
+  unsigned char fi = intersonDevice.GetFrequency();
+  std::vector< IntersonArrayDeviceRF::RFImageType::Pointer > images;
+  std::vector< std::string > imageNames;
+  for(unsigned char i=0; i<freqCheckBoxes.size(); i++){
+    if( !freqCheckBoxes[i]->isChecked() ){
+      continue;
+    }
+    if( !intersonDevice.SetFrequency( i ) ){
+      //TODO: report to ui
+      std::cout << "Failed to set frequency: " << frequencies[i] << std::endl;
+      continue;
+    } 
+    
+    for(int v = voltLow; v <= voltHigh; v+=voltStep){
+
+       if( !intersonDevice.SetVoltage( v ) ){
+         std::cout << "Failed to set voltage: " << v << std::endl;
+         continue;
+       }
+       int lastIndex = intersonDevice.GetCurrentRFIndex();
+       int index = intersonDevice.GetCurrentRFIndex();
+       while(index == lastIndex){
+         Sleep(10);
+         index = intersonDevice.GetCurrentRFIndex();
+       }
+       images.push_back( intersonDevice.GetRFImage( intersonDevice.GetCurrentRFIndex() ) );
+       
+       std::ostringstream ftext;   
+       ftext << std::setw(3) << std::fixed << std::setfill('0');
+       ftext << "rf_voltage_" << v << "_freq_";
+       ftext << std::setw(10) << std::fixed; 
+       ftext << frequencies[i] << ".nrrd";
+       imageNames.push_back( ftext.str() );
+
+    }
+  }
+
+  //Save Images
+  for( int i=0; i<images.size(); i++){
+   ImageIO<IntersonArrayDeviceRF::RFImageType>::saveImage( images[i], imageNames[i] );
+  }
+
+  //reset probe
+  intersonDevice.SetFrequency( fi );
+  intersonDevice.SetVoltage( volt );
+  
+}

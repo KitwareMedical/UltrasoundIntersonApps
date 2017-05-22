@@ -41,6 +41,10 @@ limitations under the License.
 #include "ui_Spectroscopy.h"
 #include "IntersonArrayDeviceRF.hxx"
 
+#include "itkBModeImageFilter.h"
+#include "itkCastImageFilter.h"
+#include "itkButterworthBandpass1DFilterFunction.h"
+
 //Forward declaration of Ui::MainWindow;
 namespace Ui{
 	class MainWindow;
@@ -64,20 +68,36 @@ protected slots:
   /** Start the application */
   void SetFrequency();
   void SetDepth();
-  
+ 
+  void SetLowerFrequency();
+  void SetUpperFrequency();
+  void SetOrder();
+ 
   /** Update the images displayed from the probe */
   void UpdateImage();
- 
+
+  void RecordRF(); 
  
 private:
   /** Layout for the Window */
   Ui::MainWindow *ui;
   QTimer *timer;
-  
+  std::vector< QCheckBox * > freqCheckBoxes; 
+ 
   IntersonArrayDeviceRF intersonDevice;
   int lastBModeRendered;
   int lastRFRendered;
 
+  typedef IntersonArrayDeviceRF::RFImageType  RFImageType;
+  
+  typedef itk::Image<double, 2> ImageType;
+  typedef itk::CastImageFilter<RFImageType, ImageType> CastFilter;
+  CastFilter::Pointer m_CastFilter;
+   
+  typedef itk::BModeImageFilter< ImageType >  BModeImageFilter;
+  BModeImageFilter::Pointer m_BModeFilter;
+  typedef itk::ButterworthBandpass1DFilterFunction ButterworthBandpassFilter;
+  ButterworthBandpassFilter::Pointer m_BandpassFilter;
 };
 
 #endif
