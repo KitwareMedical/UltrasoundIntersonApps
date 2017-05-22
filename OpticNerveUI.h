@@ -38,7 +38,7 @@ limitations under the License.
 #include <qgroupbox.h>
 #include <QCloseEvent>
 
-
+#include "IntersonArrayDeviceRF.hxx"
 #include "ui_OpticNerve.h"
 #include "OpticNerveCalculator.hxx"
 
@@ -92,7 +92,7 @@ private:
   
   OpticNerveEstimator::Parameters algParams;
   OpticNerveCalculator opticNerveCalculator;
-  IntersonArrayDevice intersonDevice;
+  IntersonArrayDeviceRF intersonDevice;
   float mmPerPixel;
  
   int previousNumberOfEstimates;

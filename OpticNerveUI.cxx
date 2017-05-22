@@ -116,7 +116,7 @@ void OpticNerveUI::ConnectProbe(){
 #ifdef DEBUG_PRINT
   std::cout << "Connect probe called" << std::endl;
 #endif
-  if ( !intersonDevice.ConnectProbe() ){
+  if ( !intersonDevice.ConnectProbe(false) ){
 #ifdef DEBUG_PRINT
     std::cout << "Connect probe failed" << std::endl;
 #endif
@@ -124,7 +124,7 @@ void OpticNerveUI::ConnectProbe(){
     //TODO: Show UI message
   }
   
-  IntersonArrayDevice::FrequenciesType fs = intersonDevice.GetFrequencies();
+  IntersonArrayDeviceRF::FrequenciesType fs = intersonDevice.GetFrequencies();
   ui->dropDown_Frequency->clear();
   for(int i=0; i<fs.size(); i++){
      std::ostringstream ftext;   
@@ -153,11 +153,11 @@ void OpticNerveUI::ConnectProbe(){
 void OpticNerveUI::UpdateImage(){
 
    //display bmode image
-  int currentIndex = intersonDevice.GetCurrentIndex();
+  int currentIndex = intersonDevice.GetCurrentBModeIndex();
   if( currentIndex >= 0 && currentIndex != lastRendered ){
      lastRendered = currentIndex;
-     IntersonArrayDevice::ImageType::Pointer bmode = 
-                                 intersonDevice.GetImage( currentIndex); 
+     IntersonArrayDeviceRF::ImageType::Pointer bmode = 
+                                 intersonDevice.GetBModeImage( currentIndex); 
  
 /*    
      ITKFilterFunctions<IntersonArrayDevice::ImageType>::FlipArray flip;
@@ -165,12 +165,12 @@ void OpticNerveUI::UpdateImage(){
      flip[1] = true;
      bmode = ITKFilterFunctions<IntersonArrayDevice::ImageType>::FlipImage(bmode , flip);
   */    
-     ITKFilterFunctions< IntersonArrayDevice::ImageType >::PermuteArray order;
+     ITKFilterFunctions< IntersonArrayDeviceRF::ImageType >::PermuteArray order;
      order[0] = 1;
      order[1] = 0;
-     bmode= ITKFilterFunctions< IntersonArrayDevice::ImageType>::PermuteImage(bmode, order);
+     bmode= ITKFilterFunctions< IntersonArrayDeviceRF::ImageType>::PermuteImage(bmode, order);
 
-     QImage image = ITKQtHelpers::GetQImageColor<IntersonArrayDevice::ImageType>( 
+     QImage image = ITKQtHelpers::GetQImageColor<IntersonArrayDeviceRF::ImageType>( 
                           bmode,
                           bmode->GetLargestPossibleRegion(), 
                           QImage::Format_RGB16 
@@ -257,7 +257,7 @@ void OpticNerveUI::UpdateEstimateFrameRate(){
 
 void OpticNerveUI::SetFrequency(){
   this->intersonDevice.SetFrequency( 
-                     this->ui->dropDown_Frequency->currentIndex() + 1 ); 
+                     this->ui->dropDown_Frequency->currentIndex() ); 
 }
 
 void OpticNerveUI::SetDepth(){

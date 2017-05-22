@@ -112,7 +112,7 @@ void SpectroscopyUI::ConnectProbe(){
 #ifdef DEBUG_PRINT
   std::cout << "Connect probe called" << std::endl;
 #endif
-  if ( !intersonDevice.ConnectProbe() ){
+  if ( !intersonDevice.ConnectProbe(true) ){
 #ifdef DEBUG_PRINT
     std::cout << "Connect probe failed" << std::endl;
 #endif
@@ -211,7 +211,7 @@ void SpectroscopyUI::SetFrequency(){
                      this->ui->dropDown_Frequency->currentIndex() ); 
   IntersonArrayDeviceRF::FrequenciesType frequencies = intersonDevice.GetFrequencies();
   if( !success ){
-    std::cout << "Failed to set frequency: " << frequencies[this->ui->dropDown_Frequency->currentIndex() ] << std::endl;
+    std::cout << "Failed to set frequency index: " << this->ui->dropDown_Frequency->currentIndex() << std::endl;
     std::cout << "Current frequency: " << frequencies[ intersonDevice.GetFrequency() ] << std::endl;
     std::cout << "Current frequency index: " << (int) intersonDevice.GetFrequency() << std::endl;
   } 
@@ -227,7 +227,6 @@ void SpectroscopyUI::SetUpperFrequency(){
   double f = this->ui->slider_upperFrequency->value() / 
              (double) this->ui->slider_upperFrequency->maximum(); 
   this->m_BandpassFilter->SetUpperFrequency( f );
-  std::cout << *m_BandpassFilter << std::endl;
 }
 
 void SpectroscopyUI::SetLowerFrequency(){

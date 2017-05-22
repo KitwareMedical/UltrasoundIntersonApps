@@ -8,7 +8,7 @@
 
 #include <QLabel.h>
 
-#include "IntersonArrayDevice.hxx"
+#include "IntersonArrayDeviceRF.hxx"
 #include "ITKQtHelpers.hxx"
 #include "OpticNerveEstimator.hxx"
 
@@ -60,7 +60,7 @@ public:
     }
   }
 
- bool StartProcessing( IntersonArrayDevice *source){
+ bool StartProcessing( IntersonArrayDeviceRF *source){
 #ifdef DEBUG_PRINT
      std::cout << "Startprocessing called" << std::endl;
 #endif
@@ -103,7 +103,7 @@ public:
 
      //No need for mutex anymore
      int index = currentRead++;
-     while( index >= device->GetNumberOfImagesAquired() ){
+     while( index >= device->GetNumberOfBModeImagesAquired() ){
        Sleep(10);
      }
 #ifdef DEBUG_PRINT
@@ -111,8 +111,8 @@ public:
 #endif
      //This might grab the same image twice if the index in another thread 
      //is the same modulo ringbuffer size
-     IntersonArrayDevice::ImageType::Pointer image = 
-                            device->GetImageAbsolute( index );
+     IntersonArrayDeviceRF::ImageType::Pointer image = 
+                            device->GetBModeImageAbsolute( index );
 
 /* 
      ITKFilterFunctions<IntersonArrayDevice::ImageType>::FlipArray flip;
@@ -120,11 +120,11 @@ public:
      flip[1] = true;
      image = ITKFilterFunctions<IntersonArrayDevice::ImageType>::FlipImage(image, flip);
 */
-     IntersonArrayDevice::ImageType::DirectionType direction = image->GetDirection();
-     ITKFilterFunctions< IntersonArrayDevice::ImageType >::PermuteArray order;
+     IntersonArrayDeviceRF::ImageType::DirectionType direction = image->GetDirection();
+     ITKFilterFunctions< IntersonArrayDeviceRF::ImageType >::PermuteArray order;
      order[0] = 1;
      order[1] = 0;
-     image = ITKFilterFunctions< IntersonArrayDevice::ImageType>::PermuteImage(image, order);
+     image = ITKFilterFunctions< IntersonArrayDeviceRF::ImageType>::PermuteImage(image, order);
 
      image->SetDirection( direction );
 
@@ -136,7 +136,7 @@ public:
      OpticNerveEstimator one;
      one.algParams = algParams;
 
-     typedef itk::CastImageFilter< IntersonArrayDevice::ImageType, OpticNerveEstimator::ImageType> Caster;
+     typedef itk::CastImageFilter< IntersonArrayDeviceRF::ImageType, OpticNerveEstimator::ImageType> Caster;
      Caster::Pointer caster = Caster::New();
      caster->SetInput( image );
      caster->Update();
@@ -361,7 +361,7 @@ private:
  
   //device reading
   std::atomic<int> currentRead;
-  IntersonArrayDevice *device;
+  IntersonArrayDeviceRF *device;
 
 };
 
