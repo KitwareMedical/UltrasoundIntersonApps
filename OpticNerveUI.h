@@ -65,6 +65,7 @@ protected slots:
   /** Start the application */
   void SetFrequency();
   void SetDepth();
+  void SetDoubler();
   
   void SetNerveDepth();
   void SetNerveTop();

@@ -63,6 +63,9 @@ OpticNerveUI::OpticNerveUI(int numberOfThreads, int bufferSize, QWidget *parent)
                  SIGNAL(valueChanged(int)), this, SLOT(SetDepth()));
 	connect( ui->dropDown_Frequency, 
                  SIGNAL(currentIndexChanged(int)), this, SLOT(SetFrequency()));
+        //connect( ui->checkBox_doubler, SIGNAL( stateChanged(int) ), this,
+        //         SLOT( SetDoubler() ) ); 
+        
         connect( ui->spinBox_NerveTop, SIGNAL( valueChanged(int) ), this,
                  SLOT( SetNerveTop() ) ); 
         connect( ui->spinBox_NerveDepth, SIGNAL( valueChanged(int) ), this,
@@ -158,7 +161,7 @@ void OpticNerveUI::UpdateImage(){
      lastRendered = currentIndex;
      IntersonArrayDeviceRF::ImageType::Pointer bmode = 
                                  intersonDevice.GetBModeImage( currentIndex); 
- 
+
 /*    
      ITKFilterFunctions<IntersonArrayDevice::ImageType>::FlipArray flip;
      flip[0] = false;
@@ -264,6 +267,10 @@ void OpticNerveUI::SetDepth(){
   int depth = this->intersonDevice.SetDepth( 
                                 this->ui->spinBox_Depth->value() );
   this->ui->spinBox_Depth->setValue(depth);
+}
+
+void OpticNerveUI::SetDoubler(){
+  //this->intersonDevice.SetDoubler( this->ui->checkBox_doubler->isChecked() );
 }
 
 void OpticNerveUI::ToggleEstimation(){

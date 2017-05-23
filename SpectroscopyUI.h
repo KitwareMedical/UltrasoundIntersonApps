@@ -45,6 +45,14 @@ limitations under the License.
 #include "itkCastImageFilter.h"
 #include "itkButterworthBandpass1DFilterFunction.h"
 
+#include "itkForward1DFFTImageFilter.h"
+#include "itkInverse1DFFTImageFilter.h"
+#include "itkAbsImageFilter.h"
+#include "itkAddImageFilter.h"
+#include "itkMultiplyImageFIlter.h"
+#include "itkBinaryThresholdImageFilter.h"
+#include "itkLog10ImageFilter.h"
+
 //Forward declaration of Ui::MainWindow;
 namespace Ui{
 	class MainWindow;
@@ -91,13 +99,50 @@ private:
   typedef IntersonArrayDeviceRF::RFImageType  RFImageType;
   
   typedef itk::Image<double, 2> ImageType;
+ 
+  //BMode filtering
   typedef itk::CastImageFilter<RFImageType, ImageType> CastFilter;
   CastFilter::Pointer m_CastFilter;
    
   typedef itk::BModeImageFilter< ImageType >  BModeImageFilter;
   BModeImageFilter::Pointer m_BModeFilter;
+  
   typedef itk::ButterworthBandpass1DFilterFunction ButterworthBandpassFilter;
   ButterworthBandpassFilter::Pointer m_BandpassFilter;
+
+  typedef itk::ButterworthBandpass1DFilterFunction ButterworthBandpassFilterRF;
+  ButterworthBandpassFilterRF::Pointer m_BandpassFilterRF;
+
+  
+  //RF filtering
+  typedef itk::CastImageFilter<RFImageType, ImageType> CastFilterRF;
+  CastFilterRF::Pointer m_CastFilterRF;
+  
+  typedef itk::Forward1DFFTImageFilter<ImageType> Forward1DFFTFilter;
+  Forward1DFFTFilter::Pointer m_ForwardFFT;
+
+  typedef itk::FrequencyDomain1DImageFilter<Forward1DFFTFilter::OutputImageType > 
+          FrequencyFilter;
+  FrequencyFilter::Pointer m_FrequencyFilter;
+  
+  typedef itk::Inverse1DFFTImageFilter<Forward1DFFTFilter::OutputImageType, ImageType>  
+          Inverse1DFFTFilter;
+  Inverse1DFFTFilter::Pointer m_InverseFFT;
+  
+  typedef itk::BinaryThresholdImageFilter< ImageType, ImageType >  ThresholdFilter;
+  ThresholdFilter::Pointer m_ThresholdFilter;
+
+  typedef itk::AbsImageFilter<ImageType, ImageType> AbsFilter;
+  AbsFilter::Pointer m_AbsFilter;
+
+  typedef itk::AddImageFilter<ImageType> AddFilter;
+  AddFilter::Pointer m_AddFilter;
+
+  typedef itk::Log10ImageFilter< ImageType, ImageType > LogFilter;
+  LogFilter::Pointer m_LogFilter;
+  
+  typedef itk::MultiplyImageFilter<ImageType> MultiplyFilter;
+  MultiplyFilter::Pointer m_MultiplyFilter;
 };
 
 #endif

@@ -78,14 +78,12 @@ SpectroscopyUI::SpectroscopyUI(int bufferSize, QWidget *parent)
 
         intersonDevice.SetRingBufferSize( bufferSize );
 
+ 
+        //Setup Bmode filtering 
         m_CastFilter = CastFilter::New();
-  
         m_BModeFilter = BModeImageFilter::New();
         //add frequency filter
         m_BandpassFilter =  ButterworthBandpassFilter::New();
-        SetLowerFrequency();
-        SetUpperFrequency();
-        SetOrder();
 
         typedef BModeImageFilter::FrequencyFilterType  FrequencyFilterType;
         FrequencyFilterType::Pointer freqFilter= FrequencyFilterType::New();
@@ -93,7 +91,48 @@ SpectroscopyUI::SpectroscopyUI(int bufferSize, QWidget *parent)
 
         m_BModeFilter->SetFrequencyFilter( freqFilter );
      
+        m_BModeFilter->SetInput( m_CastFilter->GetOutput() );
 
+        //Setup RF filtering
+        m_CastFilterRF = CastFilterRF::New();
+
+        m_ForwardFFT = Forward1DFFTFilter::New();
+        m_ForwardFFT->SetInput( m_CastFilterRF->GetOutput() );
+
+        m_FrequencyFilter = FrequencyFilter::New();
+        m_BandpassFilterRF = ButterworthBandpassFilterRF::New(); 
+        m_FrequencyFilter->SetFilterFunction( m_BandpassFilterRF );
+        m_FrequencyFilter->SetInput( m_ForwardFFT->GetOutput() );
+
+        m_InverseFFT = Inverse1DFFTFilter::New();
+        m_InverseFFT->SetInput( m_FrequencyFilter->GetOutput() );
+     
+        m_ThresholdFilter= ThresholdFilter::New();
+        m_ThresholdFilter->SetLowerThreshold( 0 );
+        //m_ThresholdFilter->SetUpperThreshold(  );
+        m_ThresholdFilter->SetInsideValue( 1 );
+        m_ThresholdFilter->SetOutsideValue( -1 );
+        m_ThresholdFilter->SetInput( m_InverseFFT->GetOutput() );
+
+        m_AbsFilter = AbsFilter::New();        
+        m_AbsFilter->SetInput( m_InverseFFT->GetOutput() );
+
+        m_AddFilter = AddFilter::New();
+        m_AddFilter->SetConstant2( 1 );        
+        m_AddFilter->SetInput( m_AbsFilter->GetOutput() );
+        
+        m_LogFilter = LogFilter::New();
+        m_LogFilter->SetInput( m_AddFilter->GetOutput() );
+        
+        m_MultiplyFilter = MultiplyFilter::New();
+        m_MultiplyFilter->SetInput1( m_LogFilter->GetOutput() );
+        m_MultiplyFilter->SetInput2( m_ThresholdFilter->GetOutput() );
+                    
+
+        //Set bandpass filter paramaters
+        SetLowerFrequency();
+        SetUpperFrequency();
+        SetOrder();
 
 	// Timer
 	this->timer = new QTimer(this);
@@ -163,7 +202,6 @@ void SpectroscopyUI::UpdateImage(){
      //Create BMode image
      
      m_CastFilter->SetInput( rf );
-     m_BModeFilter->SetInput( m_CastFilter->GetOutput() );
      m_BModeFilter->Update(); 
      ImageType::Pointer bmode = m_BModeFilter->GetOutput();
      
@@ -188,15 +226,30 @@ void SpectroscopyUI::UpdateImage(){
      //ITKFilterFunctions< RFImageType >::PermuteArray order;
      //order[0] = 1;
      //order[1] = 0;
-     rf = ITKFilterFunctions< RFImageType>::PermuteImage(rf, order);
+     QImage image2;
 
-     
-     rf = ITKFilterFunctions< RFImageType >::Rescale(rf, 0, 255);
-     QImage image2 = ITKQtHelpers::GetQImageColor<RFImageType>( 
+     if( ui->checkBox_filterRF->isChecked() ){
+       m_CastFilterRF->SetInput( rf );
+       m_MultiplyFilter->Update();
+       ImageType::Pointer rff = m_MultiplyFilter->GetOutput();
+       rff = ITKFilterFunctions< ImageType>::PermuteImage(rff, order);
+       rff = ITKFilterFunctions< ImageType >::Rescale(rff, 0, 255);
+       image2 = ITKQtHelpers::GetQImageColor<ImageType>( 
+                          rff,
+                          rff->GetLargestPossibleRegion(), 
+                          QImage::Format_RGB16 
+                       );
+
+     }
+     else{
+       rf = ITKFilterFunctions< RFImageType>::PermuteImage(rf, order);
+       rf = ITKFilterFunctions< RFImageType >::Rescale(rf, 0, 255);
+       image2 = ITKQtHelpers::GetQImageColor<RFImageType>( 
                           rf,
                           rf->GetLargestPossibleRegion(), 
                           QImage::Format_RGB16 
                        );
+     }
   
     ui->label_rfImage->setPixmap( QPixmap::fromImage(image2) );
     ui->label_rfImage->setScaledContents( true );
@@ -227,18 +280,19 @@ void SpectroscopyUI::SetUpperFrequency(){
   double f = this->ui->slider_upperFrequency->value() / 
              (double) this->ui->slider_upperFrequency->maximum(); 
   this->m_BandpassFilter->SetUpperFrequency( f );
+  this->m_BandpassFilterRF->SetUpperFrequency( f );
 }
 
 void SpectroscopyUI::SetLowerFrequency(){
   double f = this->ui->slider_lowerFrequency->value() / 
              (double) this->ui->slider_lowerFrequency->maximum(); 
   this->m_BandpassFilter->SetLowerFrequency( f );
-  std::cout << *m_BandpassFilter << std::endl;
+  this->m_BandpassFilterRF->SetLowerFrequency( f );
 }
 
 void SpectroscopyUI::SetOrder(){
   this->m_BandpassFilter->SetOrder( this->ui->spinBox_order->value() );
-  std::cout << *m_BandpassFilter << std::endl;
+  this->m_BandpassFilterRF->SetOrder( this->ui->spinBox_order->value() );
 }
 
 void SpectroscopyUI::RecordRF(){
