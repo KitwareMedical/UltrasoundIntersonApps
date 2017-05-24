@@ -48,6 +48,10 @@ public:
   void SetNumberOfThreads( int n){
     maxNumberOfThreads = n;
   }
+  
+  int GetMaximumNumberOfThreads(){
+    return maxNumberOfThreads;
+  }
 
   void Stop(){
     if( !stopThreads ){
@@ -83,17 +87,15 @@ public:
     this->device = source;
 
     //Spawn work threads
-#ifdef DEBUG_PRINT
-     std::cout << "Spawning worker threads" << std::endl;
-#endif
 
     toProcessMutex = CreateMutex(NULL, false, NULL);
     threads = new HANDLE[maxNumberOfThreads];
     threadsID = new DWORD[maxNumberOfThreads];
-    for(int i=0; i<maxNumberOfThreads; i++){
-      threads[i] = CreateThread(NULL, 0, OpticNerveCalculator::CalculateOpticNerveWidth, this, 0, &threadsID[i]);
-    }
-
+    
+    DWORD spawnThreadID;
+    HANDLE spawnThread  = CreateThread( NULL, 0, OpticNerveCalculator::StartThreads, this, 0, &spawnThreadID );
+    CloseHandle( spawnThread );
+    
     return true;
   }
 
@@ -228,16 +230,6 @@ public:
   };
 
 
- 
-  static DWORD WINAPI CalculateOpticNerveWidth(LPVOID lpParam){
-    OpticNerveCalculator *calc = (OpticNerveCalculator*) lpParam;
-    //Keep processing until ProcessNext says to stop
-    while( 
-      calc->ProcessNext()
-    ){}
-    return 0;
-  };
-
 
 
   OpticNerveEstimator::RGBImageType::Pointer GetImage(int ringBufferIndex){
@@ -362,6 +354,34 @@ private:
   //device reading
   std::atomic<int> currentRead;
   IntersonArrayDeviceRF *device;
+
+
+  static DWORD WINAPI StartThreads(LPVOID lpParam){
+  #ifdef DEBUG_PRINT
+     std::cout << "Spawning worker threads" << std::endl;
+#endif
+
+    OpticNerveCalculator *calc = (OpticNerveCalculator*) lpParam;
+    for(int i=0; i < calc->GetMaximumNumberOfThreads(); i++){
+      calc->StartThread(i);
+      Sleep( 1300 / (calc->GetMaximumNumberOfThreads() + 1) );
+    }
+    return 0;
+  }
+ 
+  static DWORD WINAPI CalculateOpticNerveWidth(LPVOID lpParam){
+    OpticNerveCalculator *calc = (OpticNerveCalculator*) lpParam;
+    //Keep processing until ProcessNext says to stop
+    while( 
+      calc->ProcessNext()
+    ){}
+    return 0;
+  };
+
+
+  void StartThread(int i){
+     threads[i] = CreateThread(NULL, 0, OpticNerveCalculator::CalculateOpticNerveWidth, this, 0, &threadsID[i]);
+  }
 
 };
 

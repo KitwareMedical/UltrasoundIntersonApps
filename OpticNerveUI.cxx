@@ -256,7 +256,7 @@ void OpticNerveUI::UpdateEstimateFrameRate(){
     processingRate << (currentN - previousNumberOfEstimates) << " frames / sec";
     std::cout << processingRate.str() << std::endl;
     previousNumberOfEstimates = currentN;
-};
+}
 
 void OpticNerveUI::SetFrequency(){
   this->intersonDevice.SetFrequency( 
