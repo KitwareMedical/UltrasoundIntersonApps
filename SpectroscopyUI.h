@@ -21,11 +21,10 @@ limitations under the License.
 
 =========================================================================*/
 
-
 #pragma once
 
-#ifndef SPECTROSCOPYUI_H 
-#define SPECTROSCOPYUI_H 
+#ifndef SPECTROSCOPYUI_H
+#define SPECTROSCOPYUI_H
 
 // Print debug statements
 // Using print because I am to inept to setup visual studio
@@ -54,81 +53,81 @@ limitations under the License.
 #include "itkLog10ImageFilter.h"
 
 //Forward declaration of Ui::MainWindow;
-namespace Ui{
-	class MainWindow;
+namespace Ui
+{
+  class MainWindow;
 }
 
-//Declaration of OpticNerveUI
-class SpectroscopyUI: public QMainWindow
+  //Declaration of OpticNerveUI
+class SpectroscopyUI : public QMainWindow
 {
-	Q_OBJECT
+  Q_OBJECT
 
 public:
-  SpectroscopyUI(int bufferSize, QWidget *parent = nullptr);
+  SpectroscopyUI( int bufferSize, QWidget *parent = nullptr );
   ~SpectroscopyUI();
 
 protected:
-  void  closeEvent(QCloseEvent * event);
+  void  closeEvent( QCloseEvent * event );
 
-protected slots:
-  /** Quit the application */
+  protected slots:
+    /** Quit the application */
   void ConnectProbe();
   /** Start the application */
   void SetFrequency();
   void SetDepth();
- 
+
   void SetLowerFrequency();
   void SetUpperFrequency();
   void SetOrder();
- 
+
   /** Update the images displayed from the probe */
   void UpdateImage();
 
-  void RecordRF(); 
- 
+  void RecordRF();
+
 private:
   /** Layout for the Window */
   Ui::MainWindow *ui;
   QTimer *timer;
-  std::vector< QCheckBox * > freqCheckBoxes; 
- 
+  std::vector< QCheckBox * > freqCheckBoxes;
+
   IntersonArrayDeviceRF intersonDevice;
   int lastBModeRendered;
   int lastRFRendered;
 
   typedef IntersonArrayDeviceRF::RFImageType  RFImageType;
-  
+
   typedef itk::Image<double, 2> ImageType;
- 
+
   //BMode filtering
   typedef itk::CastImageFilter<RFImageType, ImageType> CastFilter;
   CastFilter::Pointer m_CastFilter;
-   
+
   typedef itk::BModeImageFilter< ImageType >  BModeImageFilter;
   BModeImageFilter::Pointer m_BModeFilter;
-  
+
   typedef itk::ButterworthBandpass1DFilterFunction ButterworthBandpassFilter;
   ButterworthBandpassFilter::Pointer m_BandpassFilter;
 
   typedef itk::ButterworthBandpass1DFilterFunction ButterworthBandpassFilterRF;
   ButterworthBandpassFilterRF::Pointer m_BandpassFilterRF;
 
-  
   //RF filtering
   typedef itk::CastImageFilter<RFImageType, ImageType> CastFilterRF;
   CastFilterRF::Pointer m_CastFilterRF;
-  
+
   typedef itk::Forward1DFFTImageFilter<ImageType> Forward1DFFTFilter;
   Forward1DFFTFilter::Pointer m_ForwardFFT;
 
-  typedef itk::FrequencyDomain1DImageFilter<Forward1DFFTFilter::OutputImageType > 
-          FrequencyFilter;
+  typedef itk::FrequencyDomain1DImageFilter<Forward1DFFTFilter::OutputImageType >
+    FrequencyFilter;
   FrequencyFilter::Pointer m_FrequencyFilter;
-  
-  typedef itk::Inverse1DFFTImageFilter<Forward1DFFTFilter::OutputImageType, ImageType>  
-          Inverse1DFFTFilter;
+
+  typedef itk::Inverse1DFFTImageFilter<Forward1DFFTFilter::OutputImageType, ImageType>
+    Inverse1DFFTFilter;
   Inverse1DFFTFilter::Pointer m_InverseFFT;
-  
+
   typedef itk::BinaryThresholdImageFilter< ImageType, ImageType >  ThresholdFilter;
   ThresholdFilter::Pointer m_ThresholdFilter;
 
@@ -140,7 +139,7 @@ private:
 
   typedef itk::Log10ImageFilter< ImageType, ImageType > LogFilter;
   LogFilter::Pointer m_LogFilter;
-  
+
   typedef itk::MultiplyImageFilter<ImageType> MultiplyFilter;
   MultiplyFilter::Pointer m_MultiplyFilter;
 };

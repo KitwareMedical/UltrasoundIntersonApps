@@ -21,37 +21,36 @@ limitations under the License.
 
 =========================================================================*/
 
-
 #include "OpticNerveUI.h"
 
 // Qt includes
 #include <QApplication>
 #include <QDebug>
 
-
 // STD includes
 #include <iostream>
 
 
-
-int main(int argc,char *argv[])
+int main( int argc, char *argv[] )
 {
   qDebug() << "Starting ...";
-  QApplication app(argc,argv);
- 
-  int nThreads = 4; 
+  QApplication app( argc, argv );
+
+  int nThreads = 4;
   int ringBufferSize = 20;
-  OpticNerveUI window( nThreads, ringBufferSize, nullptr);
+  OpticNerveUI window( nThreads, ringBufferSize, nullptr );
   window.show();
 
-  try{
-  return app.exec();
-  }
-  catch(std::exception &e){
+  try
+    {
+    return app.exec();
+    }
+  catch( std::exception &e )
+    {
     std::cout << e.what() << std::endl;
-  }
-  catch( ...  ){
+    }
+  catch( ... )
+    {
     std::cout << "something failed" << std::endl;
-  }
-  
+    }
 }

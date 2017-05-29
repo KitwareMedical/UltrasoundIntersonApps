@@ -21,10 +21,9 @@ limitations under the License.
 
 =========================================================================*/
 
-
 #pragma once
 
-#ifndef OPTICNERVEUI_H 
+#ifndef OPTICNERVEUI_H
 #define OPTICNERVEUI_H
 
 // Print debug statements
@@ -43,30 +42,31 @@ limitations under the License.
 #include "OpticNerveCalculator.hxx"
 
 //Forward declaration of Ui::MainWindow;
-namespace Ui{
-	class MainWindow;
+namespace Ui
+{
+  class MainWindow;
 }
 
-//Declaration of OpticNerveUI
-class OpticNerveUI: public QMainWindow
+  //Declaration of OpticNerveUI
+class OpticNerveUI : public QMainWindow
 {
-	Q_OBJECT
+  Q_OBJECT
 
 public:
-  OpticNerveUI(int numberOfThreads, int bufferSize, QWidget *parent = nullptr);
+  OpticNerveUI( int numberOfThreads, int bufferSize, QWidget *parent = nullptr );
   ~OpticNerveUI();
 
 protected:
-  void  closeEvent(QCloseEvent * event);
+  void  closeEvent( QCloseEvent * event );
 
 protected slots:
-  /** Quit the application */
+    /** Quit the application */
   void ConnectProbe();
   /** Start the application */
   void SetFrequency();
   void SetDepth();
   void SetDoubler();
-  
+
   void SetNerveDepth();
   void SetNerveTop();
   void SetNerveOnly();
@@ -75,36 +75,37 @@ protected slots:
   void SetEyeThreshold2();
   void SetNerveThreshold1();
   void SetNerveThreshold2();
-  
+
   void ToggleEstimation();
 
   /** Update the images displayed from the probe */
   void UpdateImage();
 
- 
   void UpdateEstimateFrameRate();
- 
+
 private:
   /** Layout for the Window */
   Ui::MainWindow *ui;
   QTimer *timer;
-  
+
   QTimer *processing;
-  
+
   OpticNerveEstimator::Parameters algParams;
   OpticNerveCalculator opticNerveCalculator;
   IntersonArrayDeviceRF intersonDevice;
   float mmPerPixel;
- 
+
   int previousNumberOfEstimates;
 
   int lastRendered;
   int lastOverlayRendered;
 
-  static void __stdcall ProbeHardButtonCallback(void *instance){
-     OpticNerveUI *oui = (OpticNerveUI*) instance;
-     oui->ToggleEstimation();
-  };
+  static void __stdcall ProbeHardButtonCallback( void *instance )
+    {
+    OpticNerveUI *oui = ( OpticNerveUI* )instance;
+    oui->ToggleEstimation();
+    };
+
 };
 
 #endif

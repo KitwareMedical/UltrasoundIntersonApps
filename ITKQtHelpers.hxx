@@ -32,91 +32,86 @@ class QTableWidget;
 #include "itkRegionOfInterestImageFilter.h"
 #include "itkRescaleIntensityImageFilter.h"
 
-
-
 namespace ITKQtHelpers
 {
+  template <typename TImage>
+  QImage GetQImageColor( const TImage* const image, QImage::Format format )
+    {
+    return GetQImageColor( image, image->GetLargestPossibleRegion(), format );
+    }
 
-template <typename TImage>
-QImage GetQImageColor(const TImage* const image, QImage::Format format)
-{
-  return GetQImageColor(image, image->GetLargestPossibleRegion(), format);
-}
+  /** Get a color QImage from a scalar ITK image. */
+  template <typename TImage>
+  QImage GetQImageColor( const TImage* const image,
+    const itk::ImageRegion<2>& region, QImage::Format format )
+    {
+    QImage qimage( region.GetSize()[ 0 ], region.GetSize()[ 1 ], format );
 
-/** Get a color QImage from a scalar ITK image. */
-template <typename TImage>
-QImage GetQImageColor(const TImage* const image,
-                      const itk::ImageRegion<2>& region, QImage::Format format)
-{
-  QImage qimage(region.GetSize()[0], region.GetSize()[1], format);
-
-  typedef itk::RegionOfInterestImageFilter< TImage, TImage >
+    typedef itk::RegionOfInterestImageFilter< TImage, TImage >
       RegionOfInterestImageFilterType;
-  typename RegionOfInterestImageFilterType::Pointer
+    typename RegionOfInterestImageFilterType::Pointer
       regionOfInterestImageFilter = RegionOfInterestImageFilterType::New();
-  regionOfInterestImageFilter->SetRegionOfInterest(region);
-  regionOfInterestImageFilter->SetInput(image);
-  regionOfInterestImageFilter->Update();
+    regionOfInterestImageFilter->SetRegionOfInterest( region );
+    regionOfInterestImageFilter->SetInput( image );
+    regionOfInterestImageFilter->Update();
 
-  itk::ImageRegionIterator<TImage>
-      imageIterator(regionOfInterestImageFilter->GetOutput(),
-                    regionOfInterestImageFilter->GetOutput()->GetLargestPossibleRegion());
+    itk::ImageRegionIterator<TImage>
+      imageIterator( regionOfInterestImageFilter->GetOutput(),
+        regionOfInterestImageFilter->GetOutput()->GetLargestPossibleRegion() );
 
-  while(!imageIterator.IsAtEnd())
-  {
-    typename TImage::PixelType pixel = imageIterator.Get();
+    while( !imageIterator.IsAtEnd() )
+      {
+      typename TImage::PixelType pixel = imageIterator.Get();
 
-    itk::Index<2> index = imageIterator.GetIndex();
+      itk::Index<2> index = imageIterator.GetIndex();
 
-    int gray = pixel;
+      int gray = pixel;
 
+      QColor pixelColor( gray, gray, gray );
+      qimage.setPixel( index[ 0 ], index[ 1 ], pixelColor.rgb() );
 
-    QColor pixelColor(gray, gray, gray);
-    qimage.setPixel(index[0], index[1], pixelColor.rgb());
+      ++imageIterator;
+      }
 
-    ++imageIterator;
-  }
+    return qimage; // The actual image region
+    // The flipped image region - the logic for this needs to be outside of this function
+    //return qimage.mirrored(false, true); // (horizontal, vertical)
+    }
 
-  return qimage; // The actual image region
-  // The flipped image region - the logic for this needs to be outside of this function
-  //return qimage.mirrored(false, true); // (horizontal, vertical)
-}
+  /** Get a color QImage from a multi-channel ITK image. */
+  template <typename TImage>
+  QImage GetQImageColor_Vector( const TImage* const image,
+    const itk::ImageRegion<2>& region, QImage::Format format )
+    {
+    QImage qimage( region.GetSize()[ 0 ], region.GetSize()[ 1 ], format );
 
-/** Get a color QImage from a multi-channel ITK image. */
-template <typename TImage>
-QImage GetQImageColor_Vector(const TImage* const image,
-                             const itk::ImageRegion<2>& region, QImage::Format format)
-{
-  QImage qimage(region.GetSize()[0], region.GetSize()[1], format);
-
-  typedef itk::RegionOfInterestImageFilter< TImage, TImage >
+    typedef itk::RegionOfInterestImageFilter< TImage, TImage >
       RegionOfInterestImageFilterType;
-  typename RegionOfInterestImageFilterType::Pointer regionOfInterestImageFilter =
+    typename RegionOfInterestImageFilterType::Pointer regionOfInterestImageFilter =
       RegionOfInterestImageFilterType::New();
-  regionOfInterestImageFilter->SetRegionOfInterest(region);
-  regionOfInterestImageFilter->SetInput(image);
-  regionOfInterestImageFilter->Update();
+    regionOfInterestImageFilter->SetRegionOfInterest( region );
+    regionOfInterestImageFilter->SetInput( image );
+    regionOfInterestImageFilter->Update();
 
-  itk::ImageRegionIterator<TImage>
-      imageIterator(regionOfInterestImageFilter->GetOutput(),
-                    regionOfInterestImageFilter->GetOutput()->GetLargestPossibleRegion());
+    itk::ImageRegionIterator<TImage>
+      imageIterator( regionOfInterestImageFilter->GetOutput(),
+        regionOfInterestImageFilter->GetOutput()->GetLargestPossibleRegion() );
 
-  while(!imageIterator.IsAtEnd())
-  {
-    typename TImage::PixelType pixel = imageIterator.Get();
+    while( !imageIterator.IsAtEnd() )
+      {
+      typename TImage::PixelType pixel = imageIterator.Get();
 
-    itk::Index<2> index = imageIterator.GetIndex();
+      itk::Index<2> index = imageIterator.GetIndex();
 
-    QColor pixelColor(pixel[0], pixel[1], pixel[2]);
-    qimage.setPixel(index[0], index[1], pixelColor.rgb());
+      QColor pixelColor( pixel[ 0 ], pixel[ 1 ], pixel[ 2 ] );
+      qimage.setPixel( index[ 0 ], index[ 1 ], pixelColor.rgb() );
 
-    ++imageIterator;
-  }
+      ++imageIterator;
+      }
 
-  return qimage;
-}
+    return qimage;
+    }
 
 } // end namespace
-
 
 #endif
