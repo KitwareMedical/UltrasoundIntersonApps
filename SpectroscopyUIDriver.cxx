@@ -21,36 +21,35 @@ limitations under the License.
 
 =========================================================================*/
 
-
 #include "SpectroscopyUI.h"
 
 // Qt includes
 #include <QApplication>
 #include <QDebug>
 
-
 // STD includes
 #include <iostream>
 
 
-
-int main(int argc,char *argv[])
+int main( int argc, char *argv[] )
 {
   qDebug() << "Starting ...";
-  QApplication app(argc,argv);
- 
+  QApplication app( argc, argv );
+
   int ringBufferSize = 20;
-  SpectroscopyUI window( ringBufferSize, nullptr);
+  SpectroscopyUI window( ringBufferSize, nullptr );
   window.show();
 
-  try{
+  try
+    {
     return app.exec();
-  }
-  catch(std::exception &e){
+    }
+  catch( std::exception &e )
+    {
     std::cout << e.what() << std::endl;
-  }
-  catch( ...  ){
+    }
+  catch( ... )
+    {
     std::cout << "something failed" << std::endl;
-  }
-  
+    }
 }

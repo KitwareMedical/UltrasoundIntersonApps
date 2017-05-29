@@ -24,7 +24,7 @@ cmake_minimum_required( VERSION 3.5 )
 
 project( UltrasoundIntersonApps CXX )
 
-option(Build_Spectroscopy ON)
+option( Build_Spectroscopy ON )
 
 #Required packages and libraries
 FIND_PACKAGE( IntersonArraySDKCxx REQUIRED )
@@ -32,7 +32,7 @@ FIND_PACKAGE( IntersonArraySDKCxx REQUIRED )
 find_package( ITK REQUIRED )
 
 if( ${Build_Spectroscopy} )
-find_package(ITK COMPONENTS 
+find_package( ITK COMPONENTS
   Ultrasound
   ITKBinaryMathematicalMorphology
   ITKCommon
@@ -54,7 +54,7 @@ find_package(ITK COMPONENTS
   ITKIONRRD
 )
 else()
-find_package(ITK COMPONENTS 
+find_package( ITK COMPONENTS
   ITKBinaryMathematicalMorphology
   ITKCommon
   ITKDistanceMap
@@ -78,9 +78,7 @@ endif()
 
 include( ${ITK_USE_FILE} )
 
-
-
-find_package(Qt5 COMPONENTS Core Widgets REQUIRED)
+find_package( Qt5 COMPONENTS Core Widgets REQUIRED )
 
 #Common setup
 include_directories( ${CMAKE_SOURCE_DIR} )
@@ -113,7 +111,7 @@ target_link_libraries( OpticNerveUI PUBLIC
   Qt5::Widgets
 )
 
-install(TARGETS OpticNerveUI
+install( TARGETS OpticNerveUI
   RUNTIME DESTINATION bin COMPONENT Runtime
   LIBRARY DESTINATION bin COMPONENT Runtime
   ARCHIVE DESTINATION lib COMPONENT Development
@@ -130,7 +128,7 @@ set( spectroscopy_source_files
   SpectroscopyUI.cxx
 )
 
-add_executable( SpectroscopyUI 
+add_executable( SpectroscopyUI
   ${spectroscopy_source_files}
   ${SpectroscopyUI_H}
   ${spectroscopy_source_files_moc}
@@ -142,7 +140,7 @@ target_link_libraries( SpectroscopyUI PUBLIC
   Qt5::Widgets
 )
 
-install(TARGETS SpectroscopyUI
+install( TARGETS SpectroscopyUI
   RUNTIME DESTINATION bin COMPONENT Runtime
   LIBRARY DESTINATION bin COMPONENT Runtime
   ARCHIVE DESTINATION lib COMPONENT Development
@@ -152,29 +150,26 @@ endif()
 
 #CPack setup
 
+include( InstallRequiredSystemLibraries )
 
-include(InstallRequiredSystemLibraries)
+set( CPACK_MONOLITHIC_INSTALL ON )
+set( CPACK_PACKAGE_VENDOR "Kitware, Inc." )
+set( CPACK_GENERATOR "ZIP" )
+set( CPACK_PACKAGE_VERSION "0.1.3" )
+set( CPACK_PACKAGE_VERSION_MAJOR "0" )
+set( CPACK_PACKAGE_VERSION_MINOR "1" )
+set( CPACK_PACKAGE_VERSION_PATCH "3" )
 
-set(CPACK_MONOLITHIC_INSTALL ON)
-set(CPACK_PACKAGE_VENDOR "Kitware, Inc.")
-set(CPACK_GENERATOR "ZIP")
-set(CPACK_PACKAGE_VERSION "0.1.3")
-set(CPACK_PACKAGE_VERSION_MAJOR "0")
-set(CPACK_PACKAGE_VERSION_MINOR "1")
-set(CPACK_PACKAGE_VERSION_PATCH "3")
-
-set(CPACK_INSTALL_CMAKE_PROJECTS "${IntersonArraySDKCxx_DIR};IntersonArraySDKCxx;Runtime;/")
-set(CPACK_INSTALL_CMAKE_PROJECTS "${CPACK_INSTALL_CMAKE_PROJECTS};${CMAKE_BINARY_DIR};${PROJECT_NAME};ALL;/")
+set( CPACK_INSTALL_CMAKE_PROJECTS "${IntersonArraySDKCxx_DIR};IntersonArraySDKCxx;Runtime;/" )
+set( CPACK_INSTALL_CMAKE_PROJECTS "${CPACK_INSTALL_CMAKE_PROJECTS};${CMAKE_BINARY_DIR};${PROJECT_NAME};ALL;/" )
 
 # Get location of windeployqt.exe based on uic.exe location
-get_target_property(uic_location Qt5::uic IMPORTED_LOCATION)
-get_filename_component(_dir ${uic_location} DIRECTORY)
-set(windeployqt "${_dir}/windeployqt.exe")
-if(NOT EXISTS ${windeployqt})
-  message(FATAL_ERROR "Failed to locate windeployqt executable: [${windeployqt}]")
+get_target_property( uic_location Qt5::uic IMPORTED_LOCATION )
+get_filename_component( _dir ${uic_location} DIRECTORY )
+set( windeployqt "${_dir}/windeployqt.exe" )
+if( NOT EXISTS ${windeployqt} )
+  message( FATAL_ERROR "Failed to locate windeployqt executable: [${windeployqt}]" )
 endif()
-install(CODE "execute_process(COMMAND \"${windeployqt}\" \"\${CMAKE_INSTALL_PREFIX}/bin/OpticNerveUI.exe\")") 
+install( CODE "execute_process(COMMAND \"${windeployqt}\" \"\${CMAKE_INSTALL_PREFIX}/bin/OpticNerveUI.exe\")" )
 
-include(CPack)
-
-
+include( CPack )
