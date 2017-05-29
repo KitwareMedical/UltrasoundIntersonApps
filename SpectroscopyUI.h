@@ -84,6 +84,7 @@ protected:
   /** Update the images displayed from the probe */
   void UpdateImage();
 
+  void BrowseOutputDirectory();
   void RecordRF();
 
 private:

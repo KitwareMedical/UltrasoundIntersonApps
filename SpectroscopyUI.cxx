@@ -32,6 +32,9 @@ limitations under the License.
 #include "ITKQtHelpers.hxx"
 #include "ITKFilterFunctions.h"
 
+#include <QDir>
+#include <QFileDialog>
+
 #include <sstream>
 #include <iomanip>
 
@@ -72,6 +75,9 @@ SpectroscopyUI::SpectroscopyUI( int bufferSize, QWidget *parent )
   connect( ui->spinBox_order,
     SIGNAL( valueChanged( int ) ), this, SLOT( SetOrder() ) );
 
+  ui->comboBox_outputDir->addItem( QDir::currentPath() );
+  connect( ui->pushButton_outputDir,
+    SIGNAL( clicked() ), this, SLOT( BrowseOutputDirectory() ) );
   connect( ui->pushButton_recordRF,
     SIGNAL( clicked() ), this, SLOT( RecordRF() ) );
 
@@ -304,6 +310,18 @@ void SpectroscopyUI::SetOrder()
   this->m_BandpassFilterRF->SetOrder( this->ui->spinBox_order->value() );
 }
 
+void SpectroscopyUI::BrowseOutputDirectory()
+{
+  QString outputFolder = QFileDialog::getExistingDirectory( this, "Choose directory to save the captured images", "C://" );
+  if( outputFolder.isEmpty() || outputFolder.isNull() )
+    {
+    std::cerr << "Folder not valid." << std::endl;
+    return;
+    }
+  ui->comboBox_outputDir->insertItem( 0, outputFolder );
+  ui->comboBox_outputDir->setCurrentIndex( 0 );
+}
+
 void SpectroscopyUI::RecordRF()
 {
   IntersonArrayDeviceRF::FrequenciesType frequencies = intersonDevice.GetFrequencies();
@@ -353,10 +371,11 @@ void SpectroscopyUI::RecordRF()
       }
     }
 
+  std::string output_directory = ui->comboBox_outputDir->currentText().toStdString() + "/";
   //Save Images
   for( int i = 0; i < images.size(); i++ )
     {
-    ImageIO<IntersonArrayDeviceRF::RFImageType>::saveImage( images[ i ], imageNames[ i ] );
+    ImageIO<IntersonArrayDeviceRF::RFImageType>::saveImage( images[ i ], output_directory + imageNames[ i ] );
     }
 
   //reset probe
