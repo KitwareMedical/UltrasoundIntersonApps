@@ -32,6 +32,10 @@ limitations under the License.
 #include "ITKQtHelpers.hxx"
 #include "ITKFilterFunctions.h"
 
+#include <QDir>
+#include <QFileDialog>
+
+#include <ctime>
 #include <sstream>
 #include <iomanip>
 
@@ -72,6 +76,9 @@ SpectroscopyUI::SpectroscopyUI( int bufferSize, QWidget *parent )
   connect( ui->spinBox_order,
     SIGNAL( valueChanged( int ) ), this, SLOT( SetOrder() ) );
 
+  ui->comboBox_outputDir->addItem( QDir::currentPath() );
+  connect( ui->pushButton_outputDir,
+    SIGNAL( clicked() ), this, SLOT( BrowseOutputDirectory() ) );
   connect( ui->pushButton_recordRF,
     SIGNAL( clicked() ), this, SLOT( RecordRF() ) );
 
@@ -304,6 +311,18 @@ void SpectroscopyUI::SetOrder()
   this->m_BandpassFilterRF->SetOrder( this->ui->spinBox_order->value() );
 }
 
+void SpectroscopyUI::BrowseOutputDirectory()
+{
+  QString outputFolder = QFileDialog::getExistingDirectory( this, "Choose directory to save the captured images", "C://" );
+  if( outputFolder.isEmpty() || outputFolder.isNull() )
+    {
+    std::cerr << "Folder not valid." << std::endl;
+    return;
+    }
+  ui->comboBox_outputDir->insertItem( 0, outputFolder );
+  ui->comboBox_outputDir->setCurrentIndex( 0 );
+}
+
 void SpectroscopyUI::RecordRF()
 {
   IntersonArrayDeviceRF::FrequenciesType frequencies = intersonDevice.GetFrequencies();
@@ -344,19 +363,29 @@ void SpectroscopyUI::RecordRF()
         }
       images.push_back( intersonDevice.GetRFImage( intersonDevice.GetCurrentRFIndex() ) );
 
+      time_t now = time( 0 );
+      tm *ltm = localtime( &now );
+      std::string date = std::to_string( 1900 + ltm->tm_year ) + "-"
+        + std::to_string( 1 + ltm->tm_mon ) + "-"
+        + std::to_string( ltm->tm_mday ) + "_"
+        + std::to_string( 1 + ltm->tm_hour ) + "-"
+        + std::to_string( 1 + ltm->tm_min ) + "-"
+        + std::to_string( 1 + ltm->tm_sec );
+
       std::ostringstream ftext;
       ftext << std::setw( 3 ) << std::fixed << std::setfill( '0' );
       ftext << "rf_voltage_" << v << "_freq_";
       ftext << std::setw( 10 ) << std::fixed;
-      ftext << frequencies[ i ] << ".nrrd";
+      ftext << frequencies[ i ] << "_" << date << ".nrrd";
       imageNames.push_back( ftext.str() );
       }
     }
 
+  std::string output_directory = ui->comboBox_outputDir->currentText().toStdString() + "/";
   //Save Images
   for( int i = 0; i < images.size(); i++ )
     {
-    ImageIO<IntersonArrayDeviceRF::RFImageType>::saveImage( images[ i ], imageNames[ i ] );
+    ImageIO<IntersonArrayDeviceRF::RFImageType>::saveImage( images[ i ], output_directory + imageNames[ i ] );
     }
 
   //reset probe
