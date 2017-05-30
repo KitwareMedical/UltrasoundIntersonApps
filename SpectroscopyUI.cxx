@@ -35,6 +35,7 @@ limitations under the License.
 #include <QDir>
 #include <QFileDialog>
 
+#include <ctime>
 #include <sstream>
 #include <iomanip>
 
@@ -362,11 +363,20 @@ void SpectroscopyUI::RecordRF()
         }
       images.push_back( intersonDevice.GetRFImage( intersonDevice.GetCurrentRFIndex() ) );
 
+      time_t now = time( 0 );
+      tm *ltm = localtime( &now );
+      std::string date = std::to_string( 1900 + ltm->tm_year ) + "-"
+        + std::to_string( 1 + ltm->tm_mon ) + "-"
+        + std::to_string( ltm->tm_mday ) + "_"
+        + std::to_string( 1 + ltm->tm_hour ) + "-"
+        + std::to_string( 1 + ltm->tm_min ) + "-"
+        + std::to_string( 1 + ltm->tm_sec );
+
       std::ostringstream ftext;
       ftext << std::setw( 3 ) << std::fixed << std::setfill( '0' );
       ftext << "rf_voltage_" << v << "_freq_";
       ftext << std::setw( 10 ) << std::fixed;
-      ftext << frequencies[ i ] << ".nrrd";
+      ftext << frequencies[ i ] << "_" << date << ".nrrd";
       imageNames.push_back( ftext.str() );
       }
     }
