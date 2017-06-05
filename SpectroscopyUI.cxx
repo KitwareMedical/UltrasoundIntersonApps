@@ -333,6 +333,10 @@ void SpectroscopyUI::RecordRF()
   unsigned char fi = intersonDevice.GetFrequency();
   std::vector< IntersonArrayDeviceRF::RFImageType::Pointer > images;
   std::vector< std::string > imageNames;
+
+  /**
+   * Changing the frequencies is more time consuming. Do it in the outer loop.
+   */
   for( unsigned char i = 0; i < freqCheckBoxes.size(); i++ )
     {
     if( !freqCheckBoxes[ i ]->isChecked() )

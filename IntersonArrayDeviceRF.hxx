@@ -65,6 +65,7 @@ public:
 
   void Stop()
     {
+    std::cout << "Stopping probe" << std::endl;
     hwControls.StopAcquisition();
     container.StopReadScan();
     //Sleep( 100 ); // "time to stop"
@@ -117,7 +118,6 @@ public:
       {
       Stop();
       hwControls.GetFrequency( frequencies );
-      std::cout << frequencies.size() << std::endl;
       success = hwControls.SetFrequencyAndFocus( frequencyIndex, focusIndex,
         steering );
       Start();
@@ -380,22 +380,22 @@ public:
     {
     IntersonArrayDeviceRF *device = ( IntersonArrayDeviceRF* )instance;
     device->AddRFImageToBuffer( buffer );
-    };
+    }
 
   FrequenciesType GetFrequencies()
     {
     return frequencies;
-    };
+    }
 
   float GetMmPerPixel()
     {
     return container.GetMmPerPixel();
-    };
+    }
 
   HWControlsType &GetHWControls()
     {
     return hwControls;
-    };
+    }
 
 private:
 
@@ -453,7 +453,7 @@ private:
 
       bModeRingBuffer[ i ] = image;
       }
-    };
+    }
 
   void InitalizeRFRingBuffer()
     {
