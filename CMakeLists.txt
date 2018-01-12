@@ -51,6 +51,7 @@ find_package( ITK COMPONENTS
   ITKSpatialObjects
   ITKThresholding
   ITKTransform
+  ITKIOImageBase
   ITKIONRRD
 )
 else()
@@ -72,6 +73,7 @@ find_package( ITK COMPONENTS
   ITKSpatialObjects
   ITKThresholding
   ITKTransform
+  ITKIOImageBase
   ITKIONRRD
 )
 endif()
