@@ -49,9 +49,9 @@ void SpectroscopyBModeUI::closeEvent( QCloseEvent *event )
 SpectroscopyBModeUI::SpectroscopyBModeUI( QWidget *parent )
   : QMainWindow( parent ),
     ui( new Ui::MainWindow ),
-    lastBModeRendered( -1 )
+    lastIndexRendered( -1 )
 {
-  recordRF = false;
+  recordRF = true;
 
   //Setup the graphical layout on this current Widget
   ui->setupUi( this );
@@ -88,7 +88,7 @@ void SpectroscopyBModeUI::ConnectProbe()
 #ifdef DEBUG_PRINT
   std::cout << "Connect probe called" << std::endl;
 #endif
-  if( !intersonDevice.ConnectProbe( false ) )
+  if( !intersonDevice.ConnectProbe( recordRF ) )
     {
 #ifdef DEBUG_PRINT
     std::cout << "Connect probe failed" << std::endl;
@@ -130,25 +130,52 @@ void SpectroscopyBModeUI::ConnectProbe()
 
 void SpectroscopyBModeUI::UpdateImage()
 {
-  int currentIndex = intersonDevice.GetCurrentBModeIndex();
-  if( currentIndex >= 0 && currentIndex != lastBModeRendered )
+  int currentIndex = -1;
+  if( recordRF )
     {
-    lastBModeRendered = currentIndex;
+    currentIndex = intersonDevice.GetCurrentRFIndex();
+    }
+  else
+    {
+    currentIndex = intersonDevice.GetCurrentBModeIndex();
+    }
+  if( currentIndex >= 0 && currentIndex != lastIndexRendered )
+    {
+    lastIndexRendered = currentIndex;
 
-    BModeImageType::Pointer bmode =
-      intersonDevice.GetBModeImage( currentIndex );
-
-    ITKFilterFunctions< BModeImageType >::PermuteArray order;
-    order[ 0 ] = 1;
-    order[ 1 ] = 0;
-    bmode = ITKFilterFunctions< BModeImageType >::PermuteImage( bmode,
-      order );
-    bmode = ITKFilterFunctions< BModeImageType >::Rescale( bmode, 0, 255 );
-    QImage image1 = ITKQtHelpers::GetQImageColor<BModeImageType>(
-      bmode,
-      bmode->GetLargestPossibleRegion(),
-      QImage::Format_RGB16
-      );
+    QImage image1;
+    if( recordRF )
+      {
+      RFImageType::Pointer image =
+        intersonDevice.GetRFImage( currentIndex );
+      ITKFilterFunctions< RFImageType >::PermuteArray order;
+      order[ 0 ] = 1;
+      order[ 1 ] = 0;
+      image = ITKFilterFunctions< RFImageType >::PermuteImage( image,
+        order );
+      image = ITKFilterFunctions< RFImageType >::Rescale( image, 0, 255 );
+      image1 = ITKQtHelpers::GetQImageColor<RFImageType>(
+        image,
+        image->GetLargestPossibleRegion(),
+        QImage::Format_RGB16
+        );
+      }
+    else
+      {
+      BModeImageType::Pointer image =
+        intersonDevice.GetBModeImage( currentIndex );
+      ITKFilterFunctions< BModeImageType >::PermuteArray order;
+      order[ 0 ] = 1;
+      order[ 1 ] = 0;
+      image = ITKFilterFunctions< BModeImageType >::PermuteImage( image,
+        order );
+      image = ITKFilterFunctions< BModeImageType >::Rescale( image, 0, 255 );
+      image1 = ITKQtHelpers::GetQImageColor<BModeImageType>(
+        image,
+        image->GetLargestPossibleRegion(),
+        QImage::Format_RGB16
+        );
+      }
 
     ui->label_BModeImage->setPixmap( QPixmap::fromImage( image1 ) );
     ui->label_BModeImage->setScaledContents( true );
@@ -196,11 +223,6 @@ void SpectroscopyBModeUI::RecordBMode()
 {
   QSignalBlocker myTimer( this->timer );
   std::cout << "Recording Started" << std::endl;
-
-  if( recordRF )
-    {
-    intersonDevice.SetRFMode();
-    }
 
   IntersonArrayDeviceRF::FrequenciesType frequencies =
     intersonDevice.GetFrequencies();
@@ -250,31 +272,60 @@ void SpectroscopyBModeUI::RecordBMode()
           continue;
           }
         }
-      int lastIndex = intersonDevice.GetCurrentBModeIndex();
-      int index = intersonDevice.GetCurrentBModeIndex();
-      std::cout << " Waiting for probe to reset." << std::endl;
-      while( index == lastIndex )
+      if( recordRF )
         {
-        Sleep( 50 );
-        index = intersonDevice.GetCurrentBModeIndex();
-        }
-      std::cout << "  Acquiring image = " << index << std::endl;
-      for( int sample=0; sample<numberOfSamples; ++sample)
-        {
-        std::cout << "    Sample = " << sample << std::endl;
-        index = intersonDevice.GetCurrentBModeIndex();
+        int lastIndex = intersonDevice.GetCurrentRFIndex();
+        int index = intersonDevice.GetCurrentRFIndex();
+        std::cout << " Waiting for probe to reset." << std::endl;
         while( index == lastIndex )
           {
-          Sleep( 50 );
+          Sleep( 10 );
+          index = intersonDevice.GetCurrentRFIndex();
+          }
+        }
+      else
+        {
+        int lastIndex = intersonDevice.GetCurrentBModeIndex();
+        int index = intersonDevice.GetCurrentBModeIndex();
+        std::cout << " Waiting for probe to reset." << std::endl;
+        while( index == lastIndex )
+          {
+          Sleep( 10 );
           index = intersonDevice.GetCurrentBModeIndex();
           }
-        lastIndex = index;
+        }
+      for( int sample=0; sample<numberOfSamples; ++sample)
+        {
         if( recordRF )
           {
-          rfImages.push_back( intersonDevice.GetRFImage( index ) );
+          int lastIndex = intersonDevice.GetCurrentRFIndex();
+          int index = intersonDevice.GetCurrentRFIndex();
+          rfImages.push_back( intersonDevice.GetRFImage( index ));
+          std::cout << " Waiting for probe to reset." << std::endl;
+          if( sample+1 < numberOfSamples )
+            {
+            while( index == lastIndex )
+              {
+              Sleep( 10 );
+              index = intersonDevice.GetCurrentRFIndex();
+              }
+            }
           }
-        bmImages.push_back( intersonDevice.GetBModeImage(
-          intersonDevice.GetCurrentBModeIndex() ) );
+        else
+          {
+          int lastIndex = intersonDevice.GetCurrentBModeIndex();
+          int index = intersonDevice.GetCurrentBModeIndex();
+          bmImages.push_back( intersonDevice.GetBModeImage( index ));
+          std::cout << " Waiting for probe to reset." << std::endl;
+          if( sample+1 < numberOfSamples )
+            {
+            while( index == lastIndex )
+              {
+              Sleep( 10 );
+              index = intersonDevice.GetCurrentBModeIndex();
+              }
+            }
+          }
         }
       std::ostringstream ftext;
       ftext << std::setw( 3 ) << std::fixed << std::setfill( '0' );
@@ -286,40 +337,31 @@ void SpectroscopyBModeUI::RecordBMode()
     }
   if( numberOfSamples > 1 )
     {
-    typedef itk::ImageRegionIterator< RFImageType > RFImageIteratorType;
-    typedef itk::ImageRegionIterator< BModeImageType > BMImageIteratorType;
     if( recordRF )
       {
+      typedef itk::ImageRegionIterator< RFImageType > RFImageIteratorType;
       for( int i=0; i < numberOfImages; ++i )
         {
         RFImageIteratorType rfIterTo( rfImages[ i * numberOfSamples ], 
           rfImages[ i * numberOfSamples ]->GetLargestPossibleRegion() );
-        BMImageIteratorType bmIterTo( bmImages[ i * numberOfSamples ], 
-          bmImages[ i * numberOfSamples ]->GetLargestPossibleRegion() );
         for( int j = 1; j<numberOfSamples; ++j )
           {
           rfIterTo.GoToBegin();
-          bmIterTo.GoToBegin();
           RFImageIteratorType rfIterFrom( rfImages[ i * numberOfSamples + j ], 
             rfImages[ i * numberOfSamples + j ]->GetLargestPossibleRegion() );
-          BMImageIteratorType bmIterFrom( bmImages[ i * numberOfSamples + j ], 
-            bmImages[ i * numberOfSamples + j ]->GetLargestPossibleRegion() );
           while( !rfIterTo.IsAtEnd() )
             {
             rfIterTo.Set( (double)(rfIterFrom.Get() * j + rfIterTo.Get())
               / (j+1) );
-            bmIterTo.Set( (double)(bmIterFrom.Get() * j + bmIterTo.Get())
-              / (j+1) );
             ++rfIterFrom;
             ++rfIterTo;
-            ++bmIterFrom;
-            ++bmIterTo;
             }
           }
         }
       }
     else
       {
+      typedef itk::ImageRegionIterator< BModeImageType > BMImageIteratorType;
       for( int i=0; i < numberOfImages; ++i )
         {
         BMImageIteratorType bmIterTo( bmImages[ i * numberOfSamples ], 
@@ -367,22 +409,22 @@ void SpectroscopyBModeUI::RecordBMode()
   //Save Images
   for( int i = 0; i < numberOfImages; i++ )
     {
-    std::string bmFilename = "bm_" + imageNames[i];
-    std::string rfFilename = "rf_" + imageNames[i];
-    ImageIO<IntersonArrayDeviceRF::ImageType>::saveImage(
-      bmImages[ i*numberOfSamples ], output_directory + "/" + bmFilename );
     if( recordRF )
       {
+      std::string rfFilename = "rf_" + imageNames[i];
       ImageIO<IntersonArrayDeviceRF::RFImageType>::saveImage(
         rfImages[ i*numberOfSamples ], output_directory + "/" + rfFilename );
       }
+    else
+      {
+      std::string bmFilename = "bm_" + imageNames[i];
+      ImageIO<IntersonArrayDeviceRF::ImageType>::saveImage(
+        bmImages[ i*numberOfSamples ], output_directory + "/" + bmFilename );
+      }
     }
 
+  recordRF = false;
   //reset probe
-  if( recordRF )
-    {
-    intersonDevice.SetBMode();
-    }
   intersonDevice.SetFrequencyAndVoltage( fi, volt );
 
   std::cout << "Recording Stopped" << std::endl;

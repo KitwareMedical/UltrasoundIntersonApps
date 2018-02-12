@@ -77,7 +77,7 @@ private:
   std::vector< QCheckBox * > freqCheckBoxes;
 
   IntersonArrayDeviceRF intersonDevice;
-  int lastBModeRendered;
+  int lastIndexRendered;
 
   bool recordRF;
 

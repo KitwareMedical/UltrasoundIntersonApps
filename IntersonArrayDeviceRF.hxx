@@ -66,15 +66,12 @@ public:
 
   void Stop()
     {
-    std::cout << "Stopping probe" << std::endl;
     hwControls.StopAcquisition();
     container.StopReadScan();
-    //Sleep( 100 ); // "time to stop"
     };
 
   bool Start()
     {
-    std::cout << "Starting probe" << std::endl;
     container.DisposeScan();
     container.StartReadScan();
     if( container.GetRFData() )
