@@ -44,18 +44,19 @@ public:
   typedef IntersonArrayCxx::Controls::HWControls HWControlsType;
   typedef HWControlsType::FrequenciesType FrequenciesType;
 
-  IntersonArrayDeviceRF() : bModeCurrent( -1 ), rfCurrent( -1 ), nBModeImagesAquired( 0 )
+  IntersonArrayDeviceRF() :
+    bModeCurrent( -1 ), rfCurrent( -1 ), nBModeImagesAcquired( 0 )
     {
     //Setup defaults
     frequencyIndex = 0;
     focusIndex = 0;
     highVoltage = 50;
     gain = 100;
-    depth = 50;
+    depth = 100;
     steering = 0;
     probeId = -1;
 
-    SetRingBufferSize( 10 );
+    SetRingBufferSize( 40 );
     probeIsConnected = false;
     };
 
@@ -79,10 +80,12 @@ public:
     if( container.GetRFData() )
       {
       container.StartRFReadScan();
+      // Sleep(100); // "time to start"
       return hwControls.StartRFmode();
       }
     else
       {
+      //Sleep(100); // "time to start"
       return hwControls.StartBmode();
       }
     };
@@ -109,7 +112,7 @@ public:
 
   bool SetFrequency( unsigned char fIndex )
     {
-    if( frequencyIndex == fIndex )
+    if( fIndex == frequencyIndex )
       {
       return true;
       }
@@ -118,13 +121,13 @@ public:
       {
       Stop();
       hwControls.GetFrequency( frequencies );
-      success = hwControls.SetFrequencyAndFocus( frequencyIndex, focusIndex,
-        steering );
+      if( hwControls.SetFrequencyAndFocus( frequencyIndex, focusIndex,
+        steering ) )
+        {
+        frequencyIndex = fIndex;
+        success = true;
+        }
       Start();
-      }
-    if( success )
-      {
-      frequencyIndex = fIndex;
       }
     return success;
     }
@@ -141,8 +144,39 @@ public:
       {
       Stop();
       success = hwControls.SendHighVoltage( voltage, voltage );
+      highVoltage = voltage;
       Start();
       }
+    return success;
+    }
+
+  bool SetFrequencyAndVoltage( unsigned char fIndex, unsigned char voltage )
+    {
+    if( fIndex == frequencyIndex && voltage == highVoltage )
+      {
+      return true;
+      }
+    Stop();
+    bool success = false;
+    if( fIndex >= 0 && fIndex < frequencies.size() )
+      {
+      hwControls.GetFrequency( frequencies );
+      if( hwControls.SetFrequencyAndFocus( frequencyIndex, focusIndex,
+        steering ) )
+        {
+        success = true;
+        frequencyIndex = fIndex;
+        }
+      }
+    if( hwControls.SendHighVoltage( voltage, voltage ) )
+      {
+      highVoltage = voltage;
+      }
+    else
+      {
+      success = false;
+      }
+    Start();
     return success;
     }
 
@@ -174,6 +208,10 @@ public:
       }
     Stop();
     depth = hwControls.ValidDepth( d );
+    if( depth != d )
+      {
+      std::cout << "Error setting depth" << std::endl;
+      }
     SetupScanConverter();
     InitalizeBModeRingBuffer();
     InitalizeRFRingBuffer();
@@ -185,7 +223,7 @@ public:
 
   void SetRingBufferSize( int size )
     {
-//TODO: would need to allcoate images if called after probe is connected
+    //TODO: would need to allcoate images if called after probe is connected
     rfRingBuffer.resize( size );
     bModeRingBuffer.resize( size );
     }
@@ -262,12 +300,22 @@ public:
     std::cout << "Height: " << height << std::endl;
 
     std::cout << "Valid depth" << std::endl;
+    if( probeId == hwControls.ID_CA_5_0MHz )
+      {
+      depth = 120; // GP-C01 has fixed RF depth of 10.5cm per email
+      }
+    else
+      {
+      depth = 55; // CP-C01 has fixed RF depth of 5.25cm per email
+      }
+
     if( hwControls.ValidDepth( depth ) == depth )
       {
       ContainerType::ScanConverterError converterError
         = SetupScanConverter();
       if( converterError != ContainerType::SUCCESS )
         {
+        std::cout << "Setup scanconverter failed" << std::endl;
         return false;
         }
       }
@@ -281,11 +329,16 @@ public:
     InitalizeRFRingBuffer();
     
     std::cout << "Setting callbacks" << std::endl;
-    container.SetNewImageCallback( &AquireBModeImage, this );
-    container.SetNewRFImageCallback( &AquireRFImage, this );
+    container.SetNewImageCallback( &AcquireBModeImage, this );
+    container.SetNewRFImageCallback( &AcquireRFImage, this );
 
     probeIsConnected = true;
     return true;
+    }
+
+  unsigned int GetProbeId( void )
+    {
+    return probeId;
     }
 
   ImageType::Pointer GetBModeImage( int ringBufferIndex )
@@ -298,9 +351,9 @@ public:
     return GetBModeImage( absoluteIndex % bModeRingBuffer.size() );
     };
 
-  long GetNumberOfBModeImagesAquired()
+  long GetNumberOfBModeImagesAcquired()
     {
-    return nBModeImagesAquired;
+    return nBModeImagesAcquired;
     };
 
   int GetCurrentBModeIndex()
@@ -318,9 +371,9 @@ public:
     return GetRFImage( absoluteIndex % rfRingBuffer.size() );
     };
 
-  long GetRFBModeImagesAquired()
+  long GetRFBModeImagesAcquired()
     {
-    return nRFImagesAquired;
+    return nRFImagesAcquired;
     };
 
   int GetCurrentRFIndex()
@@ -345,11 +398,11 @@ public:
     std::memcpy( imageBuffer, buffer,
       imageSize[ 0 ] * imageSize[ 1 ] * sizeof( PixelType ) );
 
-    nBModeImagesAquired++;
+    nBModeImagesAcquired++;
     bModeCurrent = index;
     }
 
-  static void __stdcall AquireBModeImage( PixelType *buffer, void *instance )
+  static void __stdcall AcquireBModeImage( PixelType *buffer, void *instance )
     {
     IntersonArrayDeviceRF *device = ( IntersonArrayDeviceRF* )instance;
     device->AddBModeImageToBuffer( buffer );
@@ -372,11 +425,11 @@ public:
     std::memcpy( imageBuffer, buffer,
       imageSize[ 0 ] * imageSize[ 1 ] * sizeof( RFPixelType ) );
 
-    nRFImagesAquired++;
+    nRFImagesAcquired++;
     rfCurrent = index;
     }
 
-  static void __stdcall AquireRFImage( RFPixelType *buffer, void *instance )
+  static void __stdcall AcquireRFImage( RFPixelType *buffer, void *instance )
     {
     IntersonArrayDeviceRF *device = ( IntersonArrayDeviceRF* )instance;
     device->AddRFImageToBuffer( buffer );
@@ -402,12 +455,12 @@ private:
   //BMode Ringbuffer for storing images continuously
   std::atomic< int > bModeCurrent;
   std::vector< ImageType::Pointer > bModeRingBuffer;
-  long nBModeImagesAquired;
+  long nBModeImagesAcquired;
 
   //RF Ringbuffer for storing images continuously
   std::atomic< int > rfCurrent;
   std::vector< RFImageType::Pointer > rfRingBuffer;
-  long nRFImagesAquired;
+  long nRFImagesAcquired;
 
   //Probe setups
   bool probeIsConnected;
@@ -420,12 +473,7 @@ private:
   unsigned char highVoltage;
   int gain;
   int depth;
-  //int width;
   int height;
-  //int bModeHeight;
-  //int bModeWidth;
-  //int rfHeight;
-  //int rfWidth;
   unsigned int probeId;
 
   HWControlsType hwControls;

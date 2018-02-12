@@ -133,7 +133,7 @@ public:
     {
     //No need for mutex anymore
     int index = currentRead++;
-    while( index >= device->GetNumberOfBModeImagesAquired() )
+    while( index >= device->GetNumberOfBModeImagesAcquired() )
       {
       Sleep( 10 );
       }
@@ -213,12 +213,15 @@ public:
         status = one.Fit( castImage, true, "debug" );
         }
       }
+#ifdef DEBUG_PRINT
     catch( itk::ExceptionObject & err )
       {
-#ifdef DEBUG_PRINT
       std::cerr << "ExceptionObject caught !" << std::endl;
       std::cerr << err << std::endl;
+      }
 #endif
+    catch( ... )
+      {
       }
 
     if( status != OpticNerveEstimator::ESTIMATION_SUCCESS )
