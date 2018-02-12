@@ -56,7 +56,7 @@ public:
     steering = 0;
     probeId = -1;
 
-    SetRingBufferSize( 40 );
+    SetRingBufferSize( 10 );
     probeIsConnected = false;
     };
 
