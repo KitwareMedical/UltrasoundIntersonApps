@@ -133,7 +133,7 @@ public:
     {
     //No need for mutex anymore
     int index = currentRead++;
-    while( index >= device->GetNumberOfBModeImagesAquired() )
+    while( index >= device->GetNumberOfBModeImagesAcquired() )
       {
       Sleep( 10 );
       }
