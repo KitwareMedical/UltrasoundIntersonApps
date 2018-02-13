@@ -186,7 +186,7 @@ void SpectroscopyUI::ConnectProbe()
     freqCheckBoxes[ i ] = new QCheckBox();
     freqCheckBoxes[ i ]->setText( ftext.str().c_str() );
     freqCheckBoxes[ i ]->setChecked( true );
-    ui->layout_record->addWidget( freqCheckBoxes[ i ], 1, i );
+    ui->layout_Frequency->addWidget( freqCheckBoxes[ i ], 1);
     }
 
   if( !intersonDevice.Start() )
