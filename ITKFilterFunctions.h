@@ -177,7 +177,7 @@ public:
     {
     ImageSize size = image->GetLargestPossibleRegion().GetSize();
 
-    for( int i = 0; i < size[ 0 ]; i++ )
+    for( unsigned int i = 0; i < size[ 0 ]; i++ )
       {
       ImageIndex index;
       index[ 0 ] = i;
@@ -210,7 +210,7 @@ public:
   static void AddVerticalBorder( ImagePointer image, int w )
     {
     ImageSize size = image->GetLargestPossibleRegion().GetSize();
-    for( int i = 0; i < size[ 1 ]; i++ )
+    for( unsigned int i = 0; i < size[ 1 ]; i++ )
       {
       ImageIndex index;
       index[ 1 ] = i;
@@ -227,7 +227,7 @@ public:
   static void AddVerticalBorderLeft( ImagePointer image, int w )
     {
     ImageSize size = image->GetLargestPossibleRegion().GetSize();
-    for( int i = 0; i < size[ 1 ]; i++ )
+    for( unsigned int i = 0; i < size[ 1 ]; i++ )
       {
       ImageIndex index;
       index[ 1 ] = i;
@@ -242,7 +242,7 @@ public:
   static void AddVerticalBorderRight( ImagePointer image, int w )
     {
     ImageSize size = image->GetLargestPossibleRegion().GetSize();
-    for( int i = 0; i < size[ 1 ]; i++ )
+    for( unsigned int i = 0; i < size[ 1 ]; i++ )
       {
       ImageIndex index;
       index[ 1 ] = i;
@@ -259,17 +259,17 @@ public:
     ImageSize size = image->GetLargestPossibleRegion().GetSize();
 
     //Rescale row by row
-    for( int i = 0; i < size[ 1 ]; i++ )
+    for( unsigned int i = 0; i < size[ 1 ]; i++ )
       {
       ImageIndex index;
       index[ 1 ] = i;
       float maxIntensity = 0;
-      for( int j = 0; j < size[ 0 ]; j++ )
+      for( unsigned int j = 0; j < size[ 0 ]; j++ )
         {
         index[ 0 ] = j;
         maxIntensity = std::max( ( float )image->GetPixel( index ), maxIntensity );
         }
-      for( int j = 0; j < size[ 0 ]; j++ )
+      for( unsigned int j = 0; j < size[ 0 ]; j++ )
         {
         index[ 0 ] = j;
         image->SetPixel( index, image->GetPixel( index ) / maxIntensity );

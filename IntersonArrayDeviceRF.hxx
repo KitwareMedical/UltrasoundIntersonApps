@@ -44,8 +44,8 @@ public:
   typedef IntersonArrayCxx::Controls::HWControls HWControlsType;
   typedef HWControlsType::FrequenciesType FrequenciesType;
 
-  IntersonArrayDeviceRF() :
-    bModeCurrent( -1 ), rfCurrent( -1 ), nBModeImagesAcquired( 0 )
+  IntersonArrayDeviceRF() 
+    : bModeCurrent( -1 ), rfCurrent( -1 ), nBModeImagesAcquired( 0 )
     {
     //Setup defaults
     frequencyIndex = 0;
@@ -72,7 +72,7 @@ public:
 
   bool Start()
     {
-    container.DisposeScan();
+    std::cout << "Starting probe" << std::endl;
     container.StartReadScan();
     if( container.GetRFData() )
       {
@@ -289,7 +289,6 @@ public:
     std::cout << "Setting hw controls" << std::endl;
     container.SetHWControls( &hwControls );
 
-    container.AbortScan();
     container.SetRFData( rfData );
 
     std::cout << "Getting lines per array" << std::endl;
@@ -380,7 +379,7 @@ public:
 
   void AddBModeImageToBuffer( PixelType *buffer )
     {
-    int index = bModeCurrent + 1;
+    unsigned int index = bModeCurrent + 1;
     if( index >= bModeRingBuffer.size() )
       {
       index = 0;
@@ -407,7 +406,7 @@ public:
 
   void AddRFImageToBuffer( RFPixelType *buffer )
     {
-    int index = rfCurrent + 1;
+    unsigned int index = rfCurrent + 1;
     if( index >= rfRingBuffer.size() )
       {
       index = 0;
@@ -478,7 +477,7 @@ private:
 
   void InitalizeBModeRingBuffer()
     {
-    for( int i = 0; i < bModeRingBuffer.size(); i++ )
+    for( unsigned int i = 0; i < bModeRingBuffer.size(); i++ )
       {
       ImageType::Pointer image = ImageType::New();
 
@@ -506,7 +505,7 @@ private:
     std::cout << "Setting up RFRingBuffer" << std::endl;
 #endif
 
-    for( int i = 0; i < rfRingBuffer.size(); i++ )
+    for( unsigned int i = 0; i < rfRingBuffer.size(); i++ )
       {
       RFImageType::Pointer image = RFImageType::New();
 
@@ -536,12 +535,14 @@ private:
       {
       scanWidth = ContainerType::MAX_RFSAMPLES;
       }
+    int cfmDepth = 0;
     ContainerType::ScanConverterError converterErrorIdle =
       container.IdleInitScanConverter( depth, scanWidth, scanHeight, probeId,
-        steering, false, false, 0 );
+        steering, cfmDepth, false, false, 0, false );
 
     ContainerType::ScanConverterError converterError =
-      container.HardInitScanConverter( depth, scanWidth, scanHeight, steering );
+      container.HardInitScanConverter( depth, scanWidth, scanHeight, steering,
+        cfmDepth );
 
     return converterError;
     }
