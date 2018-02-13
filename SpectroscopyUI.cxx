@@ -169,14 +169,14 @@ void SpectroscopyUI::ConnectProbe()
     //TODO: Show UI message
     }
 
-  for( int i = 0; i < freqCheckBoxes.size(); i++ )
+  for( unsigned int i = 0; i < freqCheckBoxes.size(); i++ )
     {
     delete freqCheckBoxes[ i ];
     }
   IntersonArrayDeviceRF::FrequenciesType fs = intersonDevice.GetFrequencies();
   ui->dropDown_Frequency->clear();
   freqCheckBoxes.resize( fs.size() );
-  for( int i = 0; i < fs.size(); i++ )
+  for( unsigned int i = 0; i < fs.size(); i++ )
     {
     std::ostringstream ftext;
     ftext << std::setprecision( 2 ) << std::setw( 2 ) << std::fixed;
@@ -387,7 +387,7 @@ void SpectroscopyUI::RecordRF()
 
   std::string output_directory = ui->comboBox_outputDir->currentText().toStdString() + "/";
   //Save Images
-  for( int i = 0; i < images.size(); i++ )
+  for( unsigned int i = 0; i < images.size(); i++ )
     {
     ImageIO<IntersonArrayDeviceRF::RFImageType>::saveImage( images[ i ], output_directory + imageNames[ i ] );
     }
