@@ -141,6 +141,9 @@ public:
       {
       Stop();
       success = hwControls.SendHighVoltage( voltage, voltage );
+      if(success){
+         highVoltage = voltage;
+      }
       Start();
       }
     return success;

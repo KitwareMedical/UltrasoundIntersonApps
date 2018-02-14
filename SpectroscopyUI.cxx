@@ -358,13 +358,16 @@ void SpectroscopyUI::RecordRF()
         std::cout << "Failed to set voltage: " << v << std::endl;
         continue;
         }
+      Sleep(500);
       int lastIndex = intersonDevice.GetCurrentRFIndex();
       int index = intersonDevice.GetCurrentRFIndex();
+      //for(int nIm =0; nIm<3; nIm++){
       while( index == lastIndex )
         {
         Sleep( 10 );
         index = intersonDevice.GetCurrentRFIndex();
         }
+      lastIndex = index;
       images.push_back( intersonDevice.GetRFImage( intersonDevice.GetCurrentRFIndex() ) );
 
       time_t now = time( 0 );
@@ -382,6 +385,7 @@ void SpectroscopyUI::RecordRF()
       ftext << std::setw( 10 ) << std::fixed;
       ftext << frequencies[ i ] << "_" << date << ".nrrd";
       imageNames.push_back( ftext.str() );
+      //}
       }
     }
 
