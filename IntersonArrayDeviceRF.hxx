@@ -379,8 +379,8 @@ public:
 
   void AddBModeImageToBuffer( PixelType *buffer )
     {
-    unsigned int index = bModeCurrent + 1;
-    if( index >= bModeRingBuffer.size() )
+    int index = bModeCurrent + 1;
+    if( index >= (int)bModeRingBuffer.size() )
       {
       index = 0;
       }
@@ -479,7 +479,7 @@ private:
     {
     for( unsigned int i = 0; i < bModeRingBuffer.size(); i++ )
       {
-      ImageType::Pointer image = ImageType::New();
+      bModeRingBuffer[ i ] = ImageType::New();
 
       ImageType::IndexType imageIndex;
       imageIndex.Fill( 0 );
@@ -492,10 +492,8 @@ private:
       imageRegion.SetIndex( imageIndex );
       imageRegion.SetSize( imageSize );
 
-      image->SetRegions( imageRegion );
-      image->Allocate();
-
-      bModeRingBuffer[ i ] = image;
+      bModeRingBuffer[ i ]->SetRegions( imageRegion );
+      bModeRingBuffer[ i ]->Allocate();
       }
     }
 
@@ -507,7 +505,7 @@ private:
 
     for( unsigned int i = 0; i < rfRingBuffer.size(); i++ )
       {
-      RFImageType::Pointer image = RFImageType::New();
+      rfRingBuffer[ i ] = RFImageType::New();
 
       RFImageType::IndexType imageIndex;
       imageIndex.Fill( 0 );
@@ -520,10 +518,8 @@ private:
       imageRegion.SetIndex( imageIndex );
       imageRegion.SetSize( imageSize );
 
-      image->SetRegions( imageRegion );
-      image->Allocate();
-
-      rfRingBuffer[ i ] = image;
+      rfRingBuffer[ i ]->SetRegions( imageRegion );
+      rfRingBuffer[ i ]->Allocate();
       }
     }
 
