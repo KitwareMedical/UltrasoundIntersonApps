@@ -150,6 +150,33 @@ install( TARGETS SpectroscopyUI
   LIBRARY DESTINATION bin COMPONENT Runtime
   ARCHIVE DESTINATION lib COMPONENT Development
 )
+
+qt5_wrap_ui( SpectroscopyBModeUI_H SpectroscopyBMode.ui )
+qt5_wrap_cpp( spectroscopyBMode_source_files_moc SpectroscopyBModeUI.h )
+
+set( spectroscopyBMode_source_files
+  SpectroscopyBModeUIDriver.cxx
+  SpectroscopyBModeUI.cxx
+)
+
+add_executable( SpectroscopyBModeUI
+  ${spectroscopyBMode_source_files}
+  ${SpectroscopyBModeUI_H}
+  ${spectroscopyBMode_source_files_moc}
+)
+
+target_link_libraries( SpectroscopyBModeUI PUBLIC
+  ${ITK_LIBRARIES}
+  ${IntersonArraySDKCxx_LIBRARIES}
+  Qt5::Widgets
+)
+
+install( TARGETS SpectroscopyBModeUI
+  RUNTIME DESTINATION bin COMPONENT Runtime
+  LIBRARY DESTINATION bin COMPONENT Runtime
+  ARCHIVE DESTINATION lib COMPONENT Development
+)
+
 endif()
 
 

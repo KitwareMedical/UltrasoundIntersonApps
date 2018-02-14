@@ -133,7 +133,7 @@ void OpticNerveUI::ConnectProbe()
 
   IntersonArrayDeviceRF::FrequenciesType fs = intersonDevice.GetFrequencies();
   ui->dropDown_Frequency->clear();
-  for( int i = 0; i < fs.size(); i++ )
+  for( unsigned int i = 0; i < fs.size(); i++ )
     {
     std::ostringstream ftext;
     ftext << std::setprecision( 1 ) << std::setw( 3 ) << std::fixed;

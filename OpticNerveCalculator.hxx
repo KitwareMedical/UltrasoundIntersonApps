@@ -133,7 +133,7 @@ public:
     {
     //No need for mutex anymore
     int index = currentRead++;
-    while( index >= device->GetNumberOfBModeImagesAquired() )
+    while( index >= device->GetNumberOfBModeImagesAcquired() )
       {
       Sleep( 10 );
       }
@@ -213,12 +213,16 @@ public:
         status = one.Fit( castImage, true, "debug" );
         }
       }
+#ifdef DEBUG_PRINT
     catch( itk::ExceptionObject & err )
       {
-#ifdef DEBUG_PRINT
       std::cerr << "ExceptionObject caught !" << std::endl;
       std::cerr << err << std::endl;
+      }
 #endif
+    catch( ... )
+      {
+      std::cerr << "Unspecified exception caught !" << std::endl;
       }
 
     if( status != OpticNerveEstimator::ESTIMATION_SUCCESS )
@@ -247,7 +251,7 @@ public:
     mean = runningSum / nTotalWrite;
 
     //TODO: insert in order?
-    int toAdd = currentWrite + 1;
+    unsigned int toAdd = currentWrite + 1;
     if( toAdd >= ringBuffer.size() )
       {
       toAdd = 0;
@@ -313,7 +317,7 @@ public:
       int med = estimates.size() / 2;
       int high = 3 * estimates.size() / 4;
       std::set<double>::iterator it = estimates.begin();
-      for( int i = 0; i < estimates.size() ; i++, ++it )
+      for( unsigned int i = 0; i < estimates.size() ; i++, ++it )
         {
         double tmp = *it - stats.mean;
         stats.stdev += tmp * tmp;

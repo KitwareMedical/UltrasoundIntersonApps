@@ -44,14 +44,15 @@ public:
   typedef IntersonArrayCxx::Controls::HWControls HWControlsType;
   typedef HWControlsType::FrequenciesType FrequenciesType;
 
-  IntersonArrayDeviceRF() : bModeCurrent( -1 ), rfCurrent( -1 ), nBModeImagesAquired( 0 )
+  IntersonArrayDeviceRF() 
+    : bModeCurrent( -1 ), rfCurrent( -1 ), nBModeImagesAcquired( 0 )
     {
     //Setup defaults
     frequencyIndex = 0;
     focusIndex = 0;
     highVoltage = 50;
     gain = 100;
-    depth = 50;
+    depth = 100;
     steering = 0;
     probeId = -1;
 
@@ -65,24 +66,23 @@ public:
 
   void Stop()
     {
-    std::cout << "Stopping probe" << std::endl;
     hwControls.StopAcquisition();
     container.StopReadScan();
-    //Sleep( 100 ); // "time to stop"
     };
 
   bool Start()
     {
     std::cout << "Starting probe" << std::endl;
-    container.DisposeScan();
     container.StartReadScan();
     if( container.GetRFData() )
       {
       container.StartRFReadScan();
+      // Sleep(100); // "time to start"
       return hwControls.StartRFmode();
       }
     else
       {
+      //Sleep(100); // "time to start"
       return hwControls.StartBmode();
       }
     };
@@ -109,7 +109,7 @@ public:
 
   bool SetFrequency( unsigned char fIndex )
     {
-    if( frequencyIndex == fIndex )
+    if( fIndex == frequencyIndex )
       {
       return true;
       }
@@ -118,13 +118,13 @@ public:
       {
       Stop();
       hwControls.GetFrequency( frequencies );
-      success = hwControls.SetFrequencyAndFocus( frequencyIndex, focusIndex,
-        steering );
+      if( hwControls.SetFrequencyAndFocus( frequencyIndex, focusIndex,
+        steering ) )
+        {
+        frequencyIndex = fIndex;
+        success = true;
+        }
       Start();
-      }
-    if( success )
-      {
-      frequencyIndex = fIndex;
       }
     return success;
     }
@@ -146,6 +146,36 @@ public:
       }
       Start();
       }
+    return success;
+    }
+
+  bool SetFrequencyAndVoltage( unsigned char fIndex, unsigned char voltage )
+    {
+    if( fIndex == frequencyIndex && voltage == highVoltage )
+      {
+      return true;
+      }
+    Stop();
+    bool success = false;
+    if( fIndex >= 0 && fIndex < frequencies.size() )
+      {
+      hwControls.GetFrequency( frequencies );
+      if( hwControls.SetFrequencyAndFocus( frequencyIndex, focusIndex,
+        steering ) )
+        {
+        success = true;
+        frequencyIndex = fIndex;
+        }
+      }
+    if( hwControls.SendHighVoltage( voltage, voltage ) )
+      {
+      highVoltage = voltage;
+      }
+    else
+      {
+      success = false;
+      }
+    Start();
     return success;
     }
 
@@ -177,6 +207,10 @@ public:
       }
     Stop();
     depth = hwControls.ValidDepth( d );
+    if( depth != d )
+      {
+      std::cout << "Error setting depth" << std::endl;
+      }
     SetupScanConverter();
     InitalizeBModeRingBuffer();
     InitalizeRFRingBuffer();
@@ -188,7 +222,7 @@ public:
 
   void SetRingBufferSize( int size )
     {
-//TODO: would need to allcoate images if called after probe is connected
+    //TODO: would need to allcoate images if called after probe is connected
     rfRingBuffer.resize( size );
     bModeRingBuffer.resize( size );
     }
@@ -257,7 +291,6 @@ public:
     std::cout << "Setting hw controls" << std::endl;
     container.SetHWControls( &hwControls );
 
-    container.AbortScan();
     container.SetRFData( rfData );
 
     std::cout << "Getting lines per array" << std::endl;
@@ -265,12 +298,22 @@ public:
     std::cout << "Height: " << height << std::endl;
 
     std::cout << "Valid depth" << std::endl;
+    if( probeId == hwControls.ID_CA_5_0MHz )
+      {
+      depth = 120; // GP-C01 has fixed RF depth of 10.5cm per email
+      }
+    else
+      {
+      depth = 55; // CP-C01 has fixed RF depth of 5.25cm per email
+      }
+
     if( hwControls.ValidDepth( depth ) == depth )
       {
       ContainerType::ScanConverterError converterError
         = SetupScanConverter();
       if( converterError != ContainerType::SUCCESS )
         {
+        std::cout << "Setup scanconverter failed" << std::endl;
         return false;
         }
       }
@@ -284,11 +327,16 @@ public:
     InitalizeRFRingBuffer();
     
     std::cout << "Setting callbacks" << std::endl;
-    container.SetNewImageCallback( &AquireBModeImage, this );
-    container.SetNewRFImageCallback( &AquireRFImage, this );
+    container.SetNewImageCallback( &AcquireBModeImage, this );
+    container.SetNewRFImageCallback( &AcquireRFImage, this );
 
     probeIsConnected = true;
     return true;
+    }
+
+  unsigned int GetProbeId( void )
+    {
+    return probeId;
     }
 
   ImageType::Pointer GetBModeImage( int ringBufferIndex )
@@ -301,9 +349,9 @@ public:
     return GetBModeImage( absoluteIndex % bModeRingBuffer.size() );
     };
 
-  long GetNumberOfBModeImagesAquired()
+  long GetNumberOfBModeImagesAcquired()
     {
-    return nBModeImagesAquired;
+    return nBModeImagesAcquired;
     };
 
   int GetCurrentBModeIndex()
@@ -321,9 +369,9 @@ public:
     return GetRFImage( absoluteIndex % rfRingBuffer.size() );
     };
 
-  long GetRFBModeImagesAquired()
+  long GetRFBModeImagesAcquired()
     {
-    return nRFImagesAquired;
+    return nRFImagesAcquired;
     };
 
   int GetCurrentRFIndex()
@@ -333,7 +381,7 @@ public:
 
   void AddBModeImageToBuffer( PixelType *buffer )
     {
-    int index = bModeCurrent + 1;
+    unsigned int index = bModeCurrent + 1;
     if( index >= bModeRingBuffer.size() )
       {
       index = 0;
@@ -348,11 +396,11 @@ public:
     std::memcpy( imageBuffer, buffer,
       imageSize[ 0 ] * imageSize[ 1 ] * sizeof( PixelType ) );
 
-    nBModeImagesAquired++;
+    nBModeImagesAcquired++;
     bModeCurrent = index;
     }
 
-  static void __stdcall AquireBModeImage( PixelType *buffer, void *instance )
+  static void __stdcall AcquireBModeImage( PixelType *buffer, void *instance )
     {
     IntersonArrayDeviceRF *device = ( IntersonArrayDeviceRF* )instance;
     device->AddBModeImageToBuffer( buffer );
@@ -360,7 +408,7 @@ public:
 
   void AddRFImageToBuffer( RFPixelType *buffer )
     {
-    int index = rfCurrent + 1;
+    unsigned int index = rfCurrent + 1;
     if( index >= rfRingBuffer.size() )
       {
       index = 0;
@@ -375,11 +423,11 @@ public:
     std::memcpy( imageBuffer, buffer,
       imageSize[ 0 ] * imageSize[ 1 ] * sizeof( RFPixelType ) );
 
-    nRFImagesAquired++;
+    nRFImagesAcquired++;
     rfCurrent = index;
     }
 
-  static void __stdcall AquireRFImage( RFPixelType *buffer, void *instance )
+  static void __stdcall AcquireRFImage( RFPixelType *buffer, void *instance )
     {
     IntersonArrayDeviceRF *device = ( IntersonArrayDeviceRF* )instance;
     device->AddRFImageToBuffer( buffer );
@@ -405,12 +453,12 @@ private:
   //BMode Ringbuffer for storing images continuously
   std::atomic< int > bModeCurrent;
   std::vector< ImageType::Pointer > bModeRingBuffer;
-  long nBModeImagesAquired;
+  long nBModeImagesAcquired;
 
   //RF Ringbuffer for storing images continuously
   std::atomic< int > rfCurrent;
   std::vector< RFImageType::Pointer > rfRingBuffer;
-  long nRFImagesAquired;
+  long nRFImagesAcquired;
 
   //Probe setups
   bool probeIsConnected;
@@ -423,12 +471,7 @@ private:
   unsigned char highVoltage;
   int gain;
   int depth;
-  //int width;
   int height;
-  //int bModeHeight;
-  //int bModeWidth;
-  //int rfHeight;
-  //int rfWidth;
   unsigned int probeId;
 
   HWControlsType hwControls;
@@ -436,7 +479,7 @@ private:
 
   void InitalizeBModeRingBuffer()
     {
-    for( int i = 0; i < bModeRingBuffer.size(); i++ )
+    for( unsigned int i = 0; i < bModeRingBuffer.size(); i++ )
       {
       ImageType::Pointer image = ImageType::New();
 
@@ -464,7 +507,7 @@ private:
     std::cout << "Setting up RFRingBuffer" << std::endl;
 #endif
 
-    for( int i = 0; i < rfRingBuffer.size(); i++ )
+    for( unsigned int i = 0; i < rfRingBuffer.size(); i++ )
       {
       RFImageType::Pointer image = RFImageType::New();
 
@@ -494,12 +537,14 @@ private:
       {
       scanWidth = ContainerType::MAX_RFSAMPLES;
       }
+    int cfmDepth = 0;
     ContainerType::ScanConverterError converterErrorIdle =
       container.IdleInitScanConverter( depth, scanWidth, scanHeight, probeId,
-        steering, false, false, 0 );
+        steering, cfmDepth, false, false, 0, false );
 
     ContainerType::ScanConverterError converterError =
-      container.HardInitScanConverter( depth, scanWidth, scanHeight, steering );
+      container.HardInitScanConverter( depth, scanWidth, scanHeight, steering,
+        cfmDepth );
 
     return converterError;
     }

@@ -44,7 +44,7 @@ OpticNerveEstimator::Fit( OpticNerveEstimator::ImageType::Pointer origImage,
   desiredSize[ 0 ] = 2 * algParams.nerveXRegionFactor * eye.radiusX;
   desiredSize[ 1 ] = algParams.nerveYSizeFactor * eye.radiusY;
 
-  if( desiredStart[ 1 ] > imageSize[ 1 ] )
+  if( desiredStart[ 1 ] > (int)( imageSize[ 1 ] ) )
     {
     return ESTIMATION_FAIL_NERVE;
     }
@@ -479,7 +479,7 @@ OpticNerveEstimator::FitEye( OpticNerveEstimator::ImageType::Pointer inputImage,
       ellipseMask->SetPixel( index, 0 );
       }
     }
-  for( int i = xlim_r; i < imageSize[ 0 ]; i++ )
+  for( int i = xlim_r; i < (int)( imageSize[ 0 ] ); i++ )
     {
     ImageType::IndexType index;
     index[ 0 ] = i;
@@ -569,13 +569,17 @@ OpticNerveEstimator::FitEye( OpticNerveEstimator::ImageType::Pointer inputImage,
     registration->SetNumberOfThreads( 1 );
     registration->Update();
     }
+#ifdef DEBUG_PRINT
   catch( itk::ExceptionObject & err )
     {
-#ifdef DEBUG_PRINT
     std::cerr << "ExceptionObject caught !" << std::endl;
     std::cerr << err << std::endl;
     //return EXIT_FAILURE;
+    }
 #endif
+  catch( ... )
+    {
+    std::cerr << "Unspecified exception caught !" << std::endl;
     }
 
 #ifdef DEBUG_PRINT
@@ -786,7 +790,7 @@ OpticNerveEstimator::FitNerve(
   int leftBorder = 5;
   ImageType::IndexType borderIndex;
   borderIndex[ 1 ] = nerveSize[ 1 ] / 3;
-  for( int i = 5; i < nerveSize[ 0 ]; i++ )
+  for( unsigned int i = 5; i < nerveSize[ 0 ]; i++ )
     {
     borderIndex[ 0 ] = i;
     if( nerveImage->GetPixel( borderIndex ) < algParams.nerveBorderThreshold )
@@ -858,7 +862,7 @@ OpticNerveEstimator::FitNerve(
 #ifdef DEBUG_PRINT
   std::cout << "Approximate nerve center intensity: " << centerIntensity << std::endl;
 #endif
-  for( int i = 0; i < nerveSize[ 1 ]; i++ )
+  for( unsigned int i = 0; i < nerveSize[ 1 ]; i++ )
     {
     ImageType::IndexType index;
     index[ 1 ] = i;
@@ -883,12 +887,12 @@ OpticNerveEstimator::FitNerve(
       }
 
     float maxIntensityRight = 0;
-    for( int j = nerve.initialCenterIndex[ 0 ]; j < nerveSize[ 0 ]; j++ )
+    for( unsigned int j = nerve.initialCenterIndex[ 0 ]; j < nerveSize[ 0 ]; j++ )
       {
       index[ 0 ] = j;
       maxIntensityRight = std::max( nerveImage->GetPixel( index ), maxIntensityRight );
       }
-    for( int j = nerve.initialCenterIndex[ 0 ]; j < nerveSize[ 0 ]; j++ )
+    for( unsigned int j = nerve.initialCenterIndex[ 0 ]; j < nerveSize[ 0 ]; j++ )
       {
       index[ 0 ] = j;
       float value = 0;
@@ -1034,7 +1038,7 @@ OpticNerveEstimator::FitNerve(
     {
     nerveXStart1 = 0;
     }
-  if( nerveXEnd2 >= nerveSize[ 0 ] )
+  if( nerveXEnd2 >= (int)nerveSize[ 0 ] )
     {
     nerveXEnd2 = nerveSize[ 0 ];
     }
@@ -1044,7 +1048,7 @@ OpticNerveEstimator::FitNerve(
     return false;
     }
 
-  for( int i = nerveYStart; i < nerveSize[ 1 ]; i++ )
+  for( int i = nerveYStart; i < (int)nerveSize[ 1 ]; i++ )
     {
     ImageType::IndexType index;
     index[ 1 ] = i;
@@ -1157,15 +1161,18 @@ OpticNerveEstimator::FitNerve(
     registration->SetNumberOfThreads( 1 );
     registration->Update();
     }
+#ifdef DEBUG_PRINT
   catch( itk::ExceptionObject & err )
     {
-#ifdef DEBUG_PRINT
     std::cerr << "ExceptionObject caught !" << std::endl;
     std::cerr << err << std::endl;
-#endif
-      //return EXIT_FAILURE;
+    //return EXIT_FAILURE;
     }
-
+#endif
+  catch( ... )
+    {
+    std::cerr << "Unspecified exception caught !" << std::endl;
+    }
 #ifdef DEBUG_PRINT
   const double bestValue = optimizer->GetValue();
   std::cout << "Result = " << std::endl;
@@ -1243,7 +1250,7 @@ OpticNerveEstimator::FitNerve(
   tW[ 0 ] = std::fabs( tW[ 0 ] * imageSpacing[ 0 ] );
   tW[ 1 ] = std::fabs( tW[ 1 ] * imageSpacing[ 1 ] );
   if( nerve.centerIndex[ 0 ] < nerveIndex[ 0 ] ||
-    nerve.centerIndex[ 0 ] > nerveIndex[ 0 ] + nerveSize[ 0 ] )
+    nerve.centerIndex[ 0 ] > (int)( nerveIndex[ 0 ] + nerveSize[ 0 ] ) )
     {
 #ifdef DEBUG_PRINT
     std::cout << "Estimation failed: Nerve out of bounds" << std::endl;
