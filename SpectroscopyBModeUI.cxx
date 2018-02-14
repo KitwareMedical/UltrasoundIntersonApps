@@ -105,7 +105,7 @@ void SpectroscopyBModeUI::ConnectProbe()
     intersonDevice.GetFrequencies();
   ui->dropDown_Frequency->clear();
   freqCheckBoxes.resize( fs.size() );
-  for( int i = 0; i < fs.size(); i++ )
+  for( unsigned int i = 0; i < fs.size(); i++ )
     {
     std::ostringstream ftext;
     ftext << std::setprecision( 2 ) << std::setw( 2 ) << std::fixed;
@@ -118,6 +118,7 @@ void SpectroscopyBModeUI::ConnectProbe()
     ui->layout_Frequency->addWidget( freqCheckBoxes[ i ], 1);
     }
   ui->dropDown_Frequency->setCurrentIndex(0);
+  intersonDevice.SetFrequency( 0 );
 
   if( !intersonDevice.Start() )
     {
@@ -302,6 +303,7 @@ void SpectroscopyBModeUI::RecordBMode()
         lastIndex = index;
         if( recordRF )
           {
+          std::cout << " Saving image " << index << std::endl;
           rfImages.push_back( intersonDevice.GetRFImage( index ));
           std::cout << " Waiting for probe to reset." << std::endl;
           if( sample+1 < numberOfSamples )
@@ -315,6 +317,7 @@ void SpectroscopyBModeUI::RecordBMode()
           }
         else
           {
+          std::cout << " Saving image " << index << std::endl;
           bmImages.push_back( intersonDevice.GetBModeImage( index ));
           std::cout << " Waiting for probe to reset." << std::endl;
           if( sample+1 < numberOfSamples )
