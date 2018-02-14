@@ -51,7 +51,7 @@ SpectroscopyBModeUI::SpectroscopyBModeUI( QWidget *parent )
     ui( new Ui::MainWindow ),
     lastIndexRendered( -1 )
 {
-  recordRF = true;
+  recordRF = false;
 
   //Setup the graphical layout on this current Widget
   ui->setupUi( this );
@@ -97,7 +97,7 @@ void SpectroscopyBModeUI::ConnectProbe()
     //TODO: Show UI message
     }
 
-  for( int i = 0; i < freqCheckBoxes.size(); i++ )
+  for( unsigned int i = 0; i < freqCheckBoxes.size(); i++ )
     {
     delete freqCheckBoxes[ i ];
     }
@@ -242,6 +242,8 @@ void SpectroscopyBModeUI::RecordBMode()
   int numberOfSamples = ui->spinBox_numberOfSamples->value();
   int numVol = (int)((voltHigh-voltLow) / voltStep)+1;
   int numberOfImages = freqCheckBoxes.size() * numVol;
+  int lastIndex = -1;
+  int index = lastIndex;
   for( unsigned char i = 0; i < freqCheckBoxes.size(); i++ )
     {
     if( !freqCheckBoxes[ i ]->isChecked() )
@@ -272,10 +274,11 @@ void SpectroscopyBModeUI::RecordBMode()
           continue;
           }
         }
+      Sleep( 500 );
       if( recordRF )
         {
-        int lastIndex = intersonDevice.GetCurrentRFIndex();
-        int index = intersonDevice.GetCurrentRFIndex();
+        lastIndex = intersonDevice.GetCurrentRFIndex();
+        index = intersonDevice.GetCurrentRFIndex();
         std::cout << " Waiting for probe to reset." << std::endl;
         while( index == lastIndex )
           {
@@ -285,8 +288,8 @@ void SpectroscopyBModeUI::RecordBMode()
         }
       else
         {
-        int lastIndex = intersonDevice.GetCurrentBModeIndex();
-        int index = intersonDevice.GetCurrentBModeIndex();
+        lastIndex = intersonDevice.GetCurrentBModeIndex();
+        index = intersonDevice.GetCurrentBModeIndex();
         std::cout << " Waiting for probe to reset." << std::endl;
         while( index == lastIndex )
           {
@@ -296,10 +299,9 @@ void SpectroscopyBModeUI::RecordBMode()
         }
       for( int sample=0; sample<numberOfSamples; ++sample)
         {
+        lastIndex = index;
         if( recordRF )
           {
-          int lastIndex = intersonDevice.GetCurrentRFIndex();
-          int index = intersonDevice.GetCurrentRFIndex();
           rfImages.push_back( intersonDevice.GetRFImage( index ));
           std::cout << " Waiting for probe to reset." << std::endl;
           if( sample+1 < numberOfSamples )
@@ -313,8 +315,6 @@ void SpectroscopyBModeUI::RecordBMode()
           }
         else
           {
-          int lastIndex = intersonDevice.GetCurrentBModeIndex();
-          int index = intersonDevice.GetCurrentBModeIndex();
           bmImages.push_back( intersonDevice.GetBModeImage( index ));
           std::cout << " Waiting for probe to reset." << std::endl;
           if( sample+1 < numberOfSamples )
@@ -423,9 +423,9 @@ void SpectroscopyBModeUI::RecordBMode()
       }
     }
 
-  recordRF = false;
   //reset probe
   intersonDevice.SetFrequencyAndVoltage( fi, volt );
+  Sleep( 100 );
 
   std::cout << "Recording Stopped" << std::endl;
 }
