@@ -341,7 +341,15 @@ public:
 
   ImageType::Pointer GetBModeImage( int ringBufferIndex )
     {
-    return bModeRingBuffer[ ringBufferIndex ];
+    ImageType::Pointer image = CreateBModeImage();
+    const ImageType::RegionType & largestRegion =
+      image->GetLargestPossibleRegion();
+    const ImageType::SizeType imageSize = largestRegion.GetSize();
+    PixelType *imageBuffer = image->GetPixelContainer()->GetBufferPointer();
+    PixelType *ringImageBuffer = bModeRingBuffer[ringBufferIndex]->GetPixelContainer()->GetBufferPointer();
+    std::memcpy( imageBuffer, ringImageBuffer,
+                 imageSize[ 0 ] * imageSize[ 1 ] * sizeof( PixelType ) );
+    return image; 
     };
 
   ImageType::Pointer GetBModeImageAbsolute( int absoluteIndex )
@@ -361,7 +369,16 @@ public:
 
   RFImageType::Pointer GetRFImage( int ringBufferIndex )
     {
-    return rfRingBuffer[ ringBufferIndex ];
+    
+    RFImageType::Pointer image = CreateRFImage();
+    const RFImageType::RegionType & largestRegion =
+      image->GetLargestPossibleRegion();
+    const RFImageType::SizeType imageSize = largestRegion.GetSize();
+    RFPixelType *imageBuffer = image->GetPixelContainer()->GetBufferPointer();
+    RFPixelType *ringImageBuffer = rfRingBuffer[ringBufferIndex]->GetPixelContainer()->GetBufferPointer();
+    std::memcpy( imageBuffer, ringImageBuffer,
+                 imageSize[ 0 ] * imageSize[ 1 ] * sizeof( RFPixelType ) );
+    return image; 
     };
 
   RFImageType::Pointer GetRFImageAbsolute( int absoluteIndex )
@@ -389,7 +406,6 @@ public:
     ImageType::Pointer image = bModeRingBuffer[ index ];
     const ImageType::RegionType & largestRegion =
       image->GetLargestPossibleRegion();
-
     const ImageType::SizeType imageSize = largestRegion.GetSize();
 
     PixelType *imageBuffer = image->GetPixelContainer()->GetBufferPointer();
@@ -477,28 +493,53 @@ private:
   HWControlsType hwControls;
   ContainerType container;
 
+  ImageType::Pointer CreateBModeImage()
+    {
+    ImageType::Pointer image = ImageType::New();
+
+    ImageType::IndexType imageIndex;
+    imageIndex.Fill( 0 );
+
+    ImageType::SizeType imageSize;
+    imageSize[ 0 ] = ContainerType::MAX_SAMPLES;
+    imageSize[ 1 ] = height;
+
+    ImageType::RegionType imageRegion;
+    imageRegion.SetIndex( imageIndex );
+    imageRegion.SetSize( imageSize );
+
+    image->SetRegions( imageRegion );
+    image->Allocate();
+
+    return image;
+    }
+
   void InitalizeBModeRingBuffer()
     {
     for( unsigned int i = 0; i < bModeRingBuffer.size(); i++ )
       {
-      ImageType::Pointer image = ImageType::New();
-
-      ImageType::IndexType imageIndex;
-      imageIndex.Fill( 0 );
-
-      ImageType::SizeType imageSize;
-      imageSize[ 0 ] = ContainerType::MAX_SAMPLES;
-      imageSize[ 1 ] = height;
-
-      ImageType::RegionType imageRegion;
-      imageRegion.SetIndex( imageIndex );
-      imageRegion.SetSize( imageSize );
-
-      image->SetRegions( imageRegion );
-      image->Allocate();
-
-      bModeRingBuffer[ i ] = image;
+      bModeRingBuffer[ i ] = CreateBModeImage();
       }
+    }
+
+  RFImageType::Pointer CreateRFImage()
+    {
+    RFImageType::Pointer image = RFImageType::New();
+
+    RFImageType::IndexType imageIndex;
+    imageIndex.Fill( 0 );
+
+    RFImageType::SizeType imageSize;
+    imageSize[ 0 ] = ContainerType::MAX_RFSAMPLES;
+    imageSize[ 1 ] = height;
+
+    RFImageType::RegionType imageRegion;
+    imageRegion.SetIndex( imageIndex );
+    imageRegion.SetSize( imageSize );
+
+    image->SetRegions( imageRegion );
+    image->Allocate();
+    return image;
     }
 
   void InitalizeRFRingBuffer()
@@ -509,23 +550,8 @@ private:
 
     for( unsigned int i = 0; i < rfRingBuffer.size(); i++ )
       {
-      RFImageType::Pointer image = RFImageType::New();
 
-      RFImageType::IndexType imageIndex;
-      imageIndex.Fill( 0 );
-
-      RFImageType::SizeType imageSize;
-      imageSize[ 0 ] = ContainerType::MAX_RFSAMPLES;
-      imageSize[ 1 ] = height;
-
-      RFImageType::RegionType imageRegion;
-      imageRegion.SetIndex( imageIndex );
-      imageRegion.SetSize( imageSize );
-
-      image->SetRegions( imageRegion );
-      image->Allocate();
-
-      rfRingBuffer[ i ] = image;
+      rfRingBuffer[ i ] = CreateRFImage();
       }
     }
 
