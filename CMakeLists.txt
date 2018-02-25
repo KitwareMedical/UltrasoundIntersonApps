@@ -27,7 +27,10 @@ project( UltrasoundIntersonApps CXX )
 option( Build_Spectroscopy ON )
 
 #Required packages and libraries
-FIND_PACKAGE( IntersonArraySDKCxx REQUIRED )
+find_package( IntersonArraySDKCxx REQUIRED )
+
+find_package( PlusLib REQUIRED )
+include( ${PlusLib_USE_FILE} )
 
 find_package( ITK REQUIRED )
 
