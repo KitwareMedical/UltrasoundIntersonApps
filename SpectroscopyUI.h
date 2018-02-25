@@ -75,7 +75,8 @@ protected:
   void ConnectProbe();
   /** Start the application */
   void SetFrequency();
-  void SetDepth();
+
+  void SetRFSamples();
 
   void SetLowerFrequency();
   void SetUpperFrequency();
@@ -115,6 +116,8 @@ private:
   ButterworthBandpassFilterRF::Pointer m_BandpassFilterRF;
 
   //RF filtering
+  int m_RFSamples;
+
   typedef itk::CastImageFilter<RFImageType, ImageType> CastFilterRF;
   CastFilterRF::Pointer m_CastFilterRF;
 

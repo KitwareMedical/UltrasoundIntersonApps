@@ -64,8 +64,6 @@ SpectroscopyUI::SpectroscopyUI( int bufferSize, QWidget *parent )
   //Links buttons and actions
   connect( ui->pushButton_ConnectProbe,
     SIGNAL( clicked() ), this, SLOT( ConnectProbe() ) );
-  connect( ui->spinBox_Depth,
-    SIGNAL( valueChanged( int ) ), this, SLOT( SetDepth() ) );
   connect( ui->dropDown_Frequency,
     SIGNAL( currentIndexChanged( int ) ), this, SLOT( SetFrequency() ) );
 
@@ -75,6 +73,9 @@ SpectroscopyUI::SpectroscopyUI( int bufferSize, QWidget *parent )
     SIGNAL( valueChanged( int ) ), this, SLOT( SetUpperFrequency() ) );
   connect( ui->spinBox_order,
     SIGNAL( valueChanged( int ) ), this, SLOT( SetOrder() ) );
+
+  connect( ui->spinBox_samples,
+    SIGNAL( valueChanged( int ) ), this, SLOT( SetRFSamples() ) );
 
   ui->comboBox_outputDir->addItem( QDir::currentPath() );
   connect( ui->pushButton_outputDir,
@@ -101,6 +102,8 @@ SpectroscopyUI::SpectroscopyUI( int bufferSize, QWidget *parent )
 
 
   //Setup RF filtering
+  m_RFSamples = 1;
+
   m_CastFilterRF = CastFilterRF::New();
 
   m_ForwardFFT = Forward1DFFTFilter::New();
@@ -140,7 +143,6 @@ SpectroscopyUI::SpectroscopyUI( int bufferSize, QWidget *parent )
   SetLowerFrequency();
   SetUpperFrequency();
   SetOrder();
-
 
   // Timer
   this->timer = new QTimer( this );
@@ -282,13 +284,6 @@ void SpectroscopyUI::SetFrequency()
     }
 }
 
-void SpectroscopyUI::SetDepth()
-{
-  int depth = this->intersonDevice.SetDepth(
-    this->ui->spinBox_Depth->value() );
-  this->ui->spinBox_Depth->setValue( depth );
-}
-
 void SpectroscopyUI::SetUpperFrequency()
 {
   double f = this->ui->slider_upperFrequency->value() /
@@ -311,9 +306,15 @@ void SpectroscopyUI::SetOrder()
   this->m_BandpassFilterRF->SetOrder( this->ui->spinBox_order->value() );
 }
 
+void SpectroscopyUI::SetRFSamples()
+{
+  this->m_RFSamples = ui->spinBox_samples->value();
+}
+
 void SpectroscopyUI::BrowseOutputDirectory()
 {
-  QString outputFolder = QFileDialog::getExistingDirectory( this, "Choose directory to save the captured images", "C://" );
+  QString outputFolder = QFileDialog::getExistingDirectory( this,
+    "Choose directory to save the captured images", "C://" );
   if( outputFolder.isEmpty() || outputFolder.isNull() )
     {
     std::cerr << "Folder not valid." << std::endl;
@@ -325,12 +326,16 @@ void SpectroscopyUI::BrowseOutputDirectory()
 
 void SpectroscopyUI::RecordRF()
 {
-  IntersonArrayDeviceRF::FrequenciesType frequencies = intersonDevice.GetFrequencies();
+  IntersonArrayDeviceRF::FrequenciesType frequencies =
+    intersonDevice.GetFrequencies();
+
   unsigned char voltLow = ui->spinBox_voltLow->value();
   unsigned char voltHigh = ui->spinBox_voltHigh->value();
   unsigned char voltStep = ui->spinBox_voltStep->value();
+
   unsigned char volt = intersonDevice.GetVoltage();
   unsigned char fi = intersonDevice.GetFrequency();
+
   std::vector< IntersonArrayDeviceRF::RFImageType::Pointer > images;
   std::vector< std::string > imageNames;
 
@@ -352,7 +357,6 @@ void SpectroscopyUI::RecordRF()
 
     for( int v = voltLow; v <= voltHigh; v += voltStep )
       {
-
       if( !intersonDevice.SetVoltage( v ) )
         {
         std::cout << "Failed to set voltage: " << v << std::endl;
@@ -361,39 +365,82 @@ void SpectroscopyUI::RecordRF()
       Sleep(100);
       int lastIndex = intersonDevice.GetCurrentRFIndex();
       int index = intersonDevice.GetCurrentRFIndex();
-      //for(int nIm =0; nIm<3; nIm++){
-      while( index == lastIndex )
+      for(int nIm = 0; nIm < m_RFSamples; nIm++)
         {
-        Sleep( 10 );
-        index = intersonDevice.GetCurrentRFIndex();
+        while( index == lastIndex )
+          {
+          Sleep( 10 );
+          index = intersonDevice.GetCurrentRFIndex();
+          }
+        lastIndex = index;
+        images.push_back( intersonDevice.GetRFImage(
+            intersonDevice.GetCurrentRFIndex() ) );
         }
-      lastIndex = index;
-      images.push_back( intersonDevice.GetRFImage( intersonDevice.GetCurrentRFIndex() ) );
-
-      time_t now = time( 0 );
-      tm *ltm = localtime( &now );
-      std::string date = std::to_string( 1900 + ltm->tm_year ) + "-"
-        + std::to_string( 1 + ltm->tm_mon ) + "-"
-        + std::to_string( ltm->tm_mday ) + "_"
-        + std::to_string( 1 + ltm->tm_hour ) + "-"
-        + std::to_string( 1 + ltm->tm_min ) + "-"
-        + std::to_string( 1 + ltm->tm_sec );
-
+  
       std::ostringstream ftext;
       ftext << std::setw( 3 ) << std::fixed << std::setfill( '0' );
       ftext << "rf_voltage_" << v << "_freq_";
       ftext << std::setw( 10 ) << std::fixed;
-      ftext << frequencies[ i ] << "_" << date << ".nrrd";
+      ftext << frequencies[ i ] << ".nrrd";
       imageNames.push_back( ftext.str() );
-      //}
       }
     }
 
-  std::string output_directory = ui->comboBox_outputDir->currentText().toStdString() + "/";
-  //Save Images
-  for( unsigned int i = 0; i < images.size(); i++ )
+  if( m_RFSamples > 1 )
     {
-    ImageIO<IntersonArrayDeviceRF::RFImageType>::saveImage( images[ i ], output_directory + imageNames[ i ] );
+    typedef itk::ImageRegionIterator< RFImageType > RFImageIteratorType;
+    for( unsigned int i=0; i < imageNames.size(); ++i )
+      {
+      RFImageIteratorType rfIterTo( images[ i * m_RFSamples ], 
+        images[ i * m_RFSamples ]->GetLargestPossibleRegion() );
+      for( int j = 1; j<m_RFSamples; ++j )
+        {
+        rfIterTo.GoToBegin();
+        RFImageIteratorType rfIterFrom( images[ i * m_RFSamples + j ], 
+          images[ i * m_RFSamples + j ]->GetLargestPossibleRegion() );
+        while( !rfIterTo.IsAtEnd() )
+          {
+          //rfIterTo.Set( rfIterFrom.Get() - (double)rfIterTo.Get() );
+          rfIterTo.Set( (double)(rfIterFrom.Get() * j + rfIterTo.Get())
+            / (j+1) );
+          ++rfIterFrom;
+          ++rfIterTo;
+          }
+        }
+      }
+    }
+
+
+  /**
+   * Create a sub directory for storing this specific collection of data.
+   **/
+  time_t subDirNow = time( 0 );
+  tm *subDirLocalTime = localtime( &subDirNow );
+  std::ostringstream subDirName;
+  subDirName << std::setw( 4 ) << std::setfill( '0' )
+    << int( 1900 + subDirLocalTime->tm_year ) << "-"
+    << std::setw( 2 ) << std::setfill( '0' )
+    << int( 1 + subDirLocalTime->tm_mon ) << "-"
+    << std::setw( 2 ) << std::setfill( '0' )
+    << int( subDirLocalTime->tm_mday ) << "_"
+    << std::setw( 2 ) << std::setfill( '0' )
+    << int( subDirLocalTime->tm_hour ) << "-"
+    << std::setw( 2 ) << std::setfill( '0' )
+    << int( subDirLocalTime->tm_min ) << "-"
+    << std::setw( 2 ) << std::setfill( '0' )
+    << int( subDirLocalTime->tm_sec );
+  std::string output_directory =
+    ui->comboBox_outputDir->currentText().toStdString() + "/"
+    + subDirName.str();
+  std::string sysMkDir = std::string( "mkdir \"" + output_directory
+    + "\"" );
+  system( sysMkDir.c_str() );
+  
+  //Save Images
+  for( unsigned int i = 0; i < imageNames.size(); i++ )
+    {
+    ImageIO<IntersonArrayDeviceRF::RFImageType>::saveImage(
+      images[ i*m_RFSamples ], output_directory + "/" + imageNames[i] );
     }
 
   //reset probe
