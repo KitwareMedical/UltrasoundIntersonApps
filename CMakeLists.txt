@@ -25,6 +25,7 @@ cmake_minimum_required( VERSION 3.5 )
 project( UltrasoundIntersonApps CXX )
 
 option( Build_Spectroscopy ON )
+option( Build_PTX ON )
 
 #Required packages and libraries
 find_package( IntersonArraySDKCxx REQUIRED )
@@ -180,6 +181,48 @@ install( TARGETS SpectroscopyBModeUI
 endif()
 
 
+#PTX ui executable
+if( ${Build_PTX} )
+
+#qt5_wrap_ui( PTXUI_H PTX.ui )
+qt5_wrap_cpp( ptx_source_files_moc1 PTXUISaveDialog.h )
+qt5_wrap_cpp( ptx_source_files_moc2 PTXUI.h )
+
+set( ptx_source_files
+  PTXPatientData.h
+  PTXUISaveDialog.cxx
+  PTXDriver.cxx
+  PTXUI.cxx
+)
+
+add_executable( PTXUI 
+  ${ptx_source_files}
+ # ${PTXUI_H}
+  ${ptx_source_files_moc1}
+  ${ptx_source_files_moc2}
+)
+
+target_link_libraries( PTXUI PUBLIC
+  ${ITK_LIBRARIES}
+  ${IntersonArraySDKCxx_LIBRARIES}
+  Qt5::Widgets
+)
+
+install( TARGETS PTXUI 
+  RUNTIME DESTINATION bin COMPONENT Runtime
+  LIBRARY DESTINATION bin COMPONENT Runtime
+  ARCHIVE DESTINATION lib COMPONENT Development
+)
+
+endif()
+
+
+
+
+
+
+
+
 #CPack setup
 
 include( InstallRequiredSystemLibraries )
@@ -203,5 +246,6 @@ if( NOT EXISTS ${windeployqt} )
   message( FATAL_ERROR "Failed to locate windeployqt executable: [${windeployqt}]" )
 endif()
 install( CODE "execute_process(COMMAND \"${windeployqt}\" \"\${CMAKE_INSTALL_PREFIX}/bin/OpticNerveUI.exe\")" )
+install( CODE "execute_process(COMMAND \"${windeployqt}\" \"\${CMAKE_INSTALL_PREFIX}/bin/PTXUI.exe\")" )
 
 include( CPack )

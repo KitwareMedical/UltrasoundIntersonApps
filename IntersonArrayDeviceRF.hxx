@@ -40,6 +40,7 @@ public:
 
   typedef ContainerType::RFImagePixelType RFPixelType;
   typedef itk::Image< RFPixelType, 2 > RFImageType;
+  typedef itk::Image< RFPixelType, 3 > RFImageType3d;
 
   typedef IntersonArrayCxx::Controls::HWControls HWControlsType;
   typedef HWControlsType::FrequenciesType FrequenciesType;
@@ -50,7 +51,7 @@ public:
     //Setup defaults
     frequencyIndex = 0;
     focusIndex = 0;
-    highVoltage = 50;
+    highVoltage = 10;
     gain = 100;
     depth = 100;
     steering = 0;
@@ -58,6 +59,7 @@ public:
 
     SetRingBufferSize( 10 );
     probeIsConnected = false;
+    probeIsRunning = false;
     };
 
   ~IntersonArrayDeviceRF()
@@ -78,13 +80,14 @@ public:
       {
       container.StartRFReadScan();
       // Sleep(100); // "time to start"
-      return hwControls.StartRFmode();
+      probeIsRunning = hwControls.StartRFmode();
       }
     else
       {
       //Sleep(100); // "time to start"
-      return hwControls.StartBmode();
+      probeIsRunning = hwControls.StartBmode();
       }
+     return probeIsRunning;
     };
 
   bool GetDoubler()
@@ -225,6 +228,11 @@ public:
     //TODO: would need to allcoate images if called after probe is connected
     rfRingBuffer.resize( size );
     bModeRingBuffer.resize( size );
+    }
+  
+  int GetRingBufferSize()
+    {
+    return rfRingBuffer.size();
     }
 
   bool ConnectProbe( bool rfData )
@@ -464,6 +472,84 @@ public:
     return hwControls;
     }
 
+   int GetNumberOfLines()
+     {
+     return hwControls.GetLinesPerArray();     
+     };
+   
+    int GetBModeDepthResolution()
+     {
+     return ContainerType::MAX_SAMPLES;
+     };
+
+    int GetRFModeDepthResolution()
+     {
+     return ContainerType::MAX_RFSAMPLES;
+     };
+
+     bool IsProbeConnected()
+     {
+     return probeIsConnected;
+     };
+
+
+     RFImageType3d::Pointer GetRingBufferRFOrdered()
+       {
+       bool wasRunning = probeIsRunning;
+       if( wasRunning )
+         {
+         Stop();
+         }
+ 
+       RFImageType3d::Pointer image = RFImageType3d::New();
+
+       RFImageType3d::IndexType imageIndex3d;
+       imageIndex3d.Fill( 0 );
+
+       RFImageType::IndexType imageIndex2d;
+       imageIndex2d.Fill( 0 );
+       RFImageType3d::SizeType imageSize;
+       imageSize[ 0 ] = ContainerType::MAX_RFSAMPLES;
+       imageSize[ 1 ] = height;
+       imageSize[ 2 ] = GetRingBufferSize();
+
+       RFImageType3d::RegionType imageRegion;
+       imageRegion.SetIndex( imageIndex3d );
+       imageRegion.SetSize( imageSize );
+
+       image->SetRegions( imageRegion );
+       image->Allocate();
+       for(int i=0; i< GetRingBufferSize(); i++)
+         {
+         int zIndex = 0;
+         if( i <= rfCurrent ){
+          zIndex = GetRingBufferSize() - rfCurrent - 1 + i; 
+         }
+         else{
+           zIndex = i-rfCurrent-1; 
+         }
+         imageIndex3d[2] = zIndex;
+         for(unsigned int j=0; j<imageSize[0]; j++)
+            {
+            imageIndex3d[0] = j;
+            imageIndex2d[0] = j;
+            for(unsigned int k=0; k<imageSize[1]; k++)
+              {
+              imageIndex3d[1] = k;
+              imageIndex2d[1] = k;
+              image->SetPixel( imageIndex3d, rfRingBuffer[zIndex]->GetPixel(imageIndex2d) );
+              }
+            }
+         }
+
+       if( wasRunning )
+         {
+         Start();
+         }
+       return image;
+
+       }
+
 private:
 
   //BMode Ringbuffer for storing images continuously
@@ -478,6 +564,7 @@ private:
 
   //Probe setups
   bool probeIsConnected;
+  bool probeIsRunning;
 
   //Probe settings
   FrequenciesType frequencies;

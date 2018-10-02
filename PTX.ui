@@ -1,0 +1,354 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>MainWindow</class>
+ <widget class="QMainWindow" name="MainWindow">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>1140</width>
+    <height>913</height>
+   </rect>
+  </property>
+  <property name="sizePolicy">
+   <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+    <horstretch>0</horstretch>
+    <verstretch>0</verstretch>
+   </sizepolicy>
+  </property>
+  <property name="font">
+   <font>
+    <pointsize>10</pointsize>
+   </font>
+  </property>
+  <property name="windowTitle">
+   <string>MainWindow</string>
+  </property>
+  <widget class="QWidget" name="centralwidget">
+   <layout class="QGridLayout" name="gridLayout_3">
+    <item row="0" column="0">
+     <layout class="QGridLayout" name="gridLayout">
+      <item row="0" column="1">
+       <layout class="QVBoxLayout" name="verticalLayout">
+        <item>
+         <widget class="QWidget" name="gridWidget_2" native="true">
+          <layout class="QGridLayout" name="gridLayout_4">
+           <item row="0" column="0">
+            <layout class="QVBoxLayout" name="verticalLayout_2">
+             <item>
+              <layout class="QGridLayout" name="gridLayout_5">
+               <property name="sizeConstraint">
+                <enum>QLayout::SetFixedSize</enum>
+               </property>
+               <item row="3" column="1">
+                <widget class="QComboBox" name="dropDown_Frequency">
+                 <property name="maximumSize">
+                  <size>
+                   <width>150</width>
+                   <height>16777215</height>
+                  </size>
+                 </property>
+                 <property name="inputMethodHints">
+                  <set>Qt::ImhNone</set>
+                 </property>
+                 <property name="currentText">
+                  <string>5 Mhz</string>
+                 </property>
+                 <item>
+                  <property name="text">
+                   <string>5 Mhz</string>
+                  </property>
+                 </item>
+                 <item>
+                  <property name="text">
+                   <string>7.5 Mhz</string>
+                  </property>
+                 </item>
+                 <item>
+                  <property name="text">
+                   <string>10 Mhz</string>
+                  </property>
+                 </item>
+                 <item>
+                  <property name="text">
+                   <string>15 Mhz</string>
+                  </property>
+                 </item>
+                </widget>
+               </item>
+               <item row="3" column="0">
+                <widget class="QLabel" name="label_Frequency">
+                 <property name="sizePolicy">
+                  <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+                   <horstretch>0</horstretch>
+                   <verstretch>0</verstretch>
+                  </sizepolicy>
+                 </property>
+                 <property name="maximumSize">
+                  <size>
+                   <width>200</width>
+                   <height>16777215</height>
+                  </size>
+                 </property>
+                 <property name="font">
+                  <font>
+                   <pointsize>10</pointsize>
+                   <weight>50</weight>
+                   <bold>false</bold>
+                  </font>
+                 </property>
+                 <property name="text">
+                  <string>Frequency (MHz) :</string>
+                 </property>
+                 <property name="alignment">
+                  <set>Qt::AlignBottom|Qt::AlignLeading|Qt::AlignLeft</set>
+                 </property>
+                </widget>
+               </item>
+               <item row="2" column="1">
+                <widget class="QSpinBox" name="spinBox_Depth">
+                 <property name="maximumSize">
+                  <size>
+                   <width>150</width>
+                   <height>16777215</height>
+                  </size>
+                 </property>
+                 <property name="minimum">
+                  <number>10</number>
+                 </property>
+                 <property name="maximum">
+                  <number>200</number>
+                 </property>
+                 <property name="singleStep">
+                  <number>5</number>
+                 </property>
+                 <property name="value">
+                  <number>100</number>
+                 </property>
+                </widget>
+               </item>
+               <item row="1" column="0">
+                <widget class="QLabel" name="label_Power">
+                 <property name="maximumSize">
+                  <size>
+                   <width>200</width>
+                   <height>16777215</height>
+                  </size>
+                 </property>
+                 <property name="text">
+                  <string>Power</string>
+                 </property>
+                </widget>
+               </item>
+               <item row="1" column="1">
+                <widget class="QSpinBox" name="spinBox_Power">
+                 <property name="maximumSize">
+                  <size>
+                   <width>150</width>
+                   <height>16777215</height>
+                  </size>
+                 </property>
+                 <property name="maximum">
+                  <number>100</number>
+                 </property>
+                 <property name="value">
+                  <number>10</number>
+                 </property>
+                </widget>
+               </item>
+               <item row="2" column="0">
+                <widget class="QLabel" name="label_Depth">
+                 <property name="maximumSize">
+                  <size>
+                   <width>200</width>
+                   <height>16777215</height>
+                  </size>
+                 </property>
+                 <property name="font">
+                  <font>
+                   <pointsize>10</pointsize>
+                   <weight>50</weight>
+                   <bold>false</bold>
+                  </font>
+                 </property>
+                 <property name="text">
+                  <string>Depth:</string>
+                 </property>
+                 <property name="alignment">
+                  <set>Qt::AlignBottom|Qt::AlignLeading|Qt::AlignLeft</set>
+                 </property>
+                </widget>
+               </item>
+               <item row="0" column="1">
+                <widget class="QPushButton" name="pushButton_save">
+                 <property name="maximumSize">
+                  <size>
+                   <width>200</width>
+                   <height>16777215</height>
+                  </size>
+                 </property>
+                 <property name="font">
+                  <font>
+                   <pointsize>12</pointsize>
+                  </font>
+                 </property>
+                 <property name="text">
+                  <string>Save</string>
+                 </property>
+                </widget>
+               </item>
+               <item row="0" column="0">
+                <widget class="QPushButton" name="pushButton_ConnectProbe">
+                 <property name="maximumSize">
+                  <size>
+                   <width>200</width>
+                   <height>16777215</height>
+                  </size>
+                 </property>
+                 <property name="font">
+                  <font>
+                   <pointsize>12</pointsize>
+                  </font>
+                 </property>
+                 <property name="text">
+                  <string>Connect Probe</string>
+                 </property>
+                </widget>
+               </item>
+               <item row="4" column="0">
+                <spacer name="verticalSpacer">
+                 <property name="orientation">
+                  <enum>Qt::Vertical</enum>
+                 </property>
+                 <property name="sizeType">
+                  <enum>QSizePolicy::MinimumExpanding</enum>
+                 </property>
+                </spacer>
+               </item>
+              </layout>
+             </item>
+            </layout>
+           </item>
+           <item row="0" column="2">
+            <widget class="QLabel" name="label_BModeImage">
+             <property name="sizePolicy">
+              <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+               <horstretch>0</horstretch>
+               <verstretch>0</verstretch>
+              </sizepolicy>
+             </property>
+             <property name="maximumSize">
+              <size>
+               <width>16777215</width>
+               <height>401000</height>
+              </size>
+             </property>
+             <property name="frameShape">
+              <enum>QFrame::Box</enum>
+             </property>
+             <property name="frameShadow">
+              <enum>QFrame::Sunken</enum>
+             </property>
+             <property name="text">
+              <string notr="true"/>
+             </property>
+             <property name="textFormat">
+              <enum>Qt::AutoText</enum>
+             </property>
+             <property name="alignment">
+              <set>Qt::AlignCenter</set>
+             </property>
+            </widget>
+           </item>
+           <item row="0" column="1">
+            <spacer name="horizontalSpacer">
+             <property name="orientation">
+              <enum>Qt::Horizontal</enum>
+             </property>
+             <property name="sizeType">
+              <enum>QSizePolicy::MinimumExpanding</enum>
+             </property>
+             <property name="sizeHint" stdset="0">
+              <size>
+               <width>40</width>
+               <height>20</height>
+              </size>
+             </property>
+            </spacer>
+           </item>
+          </layout>
+         </widget>
+        </item>
+        <item>
+         <widget class="QWidget" name="horizontalWidget" native="true">
+          <layout class="QHBoxLayout" name="horizontalLayout">
+           <item>
+            <widget class="QLabel" name="label_MMode1">
+             <property name="sizePolicy">
+              <sizepolicy hsizetype="Preferred" vsizetype="Expanding">
+               <horstretch>0</horstretch>
+               <verstretch>0</verstretch>
+              </sizepolicy>
+             </property>
+             <property name="minimumSize">
+              <size>
+               <width>0</width>
+               <height>300</height>
+              </size>
+             </property>
+             <property name="text">
+              <string/>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QLabel" name="label_MMode2">
+             <property name="text">
+              <string/>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QLabel" name="label_MMode3">
+             <property name="text">
+              <string/>
+             </property>
+            </widget>
+           </item>
+          </layout>
+         </widget>
+        </item>
+       </layout>
+      </item>
+     </layout>
+    </item>
+    <item row="0" column="1">
+     <widget class="QSlider" name="verticalSlider_Scale">
+      <property name="maximum">
+       <number>100</number>
+      </property>
+      <property name="value">
+       <number>50</number>
+      </property>
+      <property name="orientation">
+       <enum>Qt::Vertical</enum>
+      </property>
+     </widget>
+    </item>
+   </layout>
+  </widget>
+  <widget class="QMenuBar" name="menubar">
+   <property name="geometry">
+    <rect>
+     <x>0</x>
+     <y>0</y>
+     <width>1140</width>
+     <height>20</height>
+    </rect>
+   </property>
+  </widget>
+  <widget class="QStatusBar" name="statusbar"/>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>

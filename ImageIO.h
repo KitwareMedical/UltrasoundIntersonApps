@@ -69,7 +69,6 @@ public:
   typedef typename itk::CastImageFilter<Image, Image> CastFilter;
   typedef typename CastFilter::Pointer CastFilterPointer;
 
-  //Save an image from a vector
   static void WriteImage( ImagePointer image, const std::string &filename )
     {
     ImageWriterPointer writer = ImageWriter::New();
