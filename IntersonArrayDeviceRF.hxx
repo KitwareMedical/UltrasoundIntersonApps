@@ -121,7 +121,7 @@ public:
       {
       Stop();
       hwControls.GetFrequency( frequencies );
-      if( hwControls.SetFrequencyAndFocus( frequencyIndex, focusIndex,
+      if( hwControls.SetFrequencyAndFocus( fIndex, focusIndex,
         steering ) )
         {
         frequencyIndex = fIndex;
